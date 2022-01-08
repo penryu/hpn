@@ -19,3 +19,6 @@ pub mod atom;
 pub mod hpn;
 
 mod util;
+
+pub use crate::hpn::HPN;
+pub use crate::atom::Atom;
