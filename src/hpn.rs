@@ -29,8 +29,7 @@ use crate::util::factorial;
 /// Underlying implementation of the 4-register stack.
 pub type Registers = [BigDecimal; 4];
 
-/// Simple sequence of actions applied to an HPN instance, similar to tape
-/// output on electronic calculators.
+/// Stores the calculation history.
 pub type Tape = Vec<String>;
 
 /// Enum used to map registers (X, Y, Z, T) to index into the stack.
@@ -50,8 +49,11 @@ pub enum Register {
 /// Primary struct backing the HPN engine.
 #[derive(Debug, Default)]
 pub struct HPN {
-    regs: Registers,
-    tape: Tape,
+    /// Internal representation of the 4-register calculator stack.
+    pub regs: Registers,
+    /// Simple sequence of actions applied to an HPN instance, similar to tape
+    /// output on electronic calculators.
+    pub tape: Tape,
 }
 
 impl HPN {
