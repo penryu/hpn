@@ -212,6 +212,11 @@ impl HPN {
     }
 }
 
+/// Constructing an HPN instance and applying each of the tokens parsed in the
+/// given expression.
+///
+/// HPN objects can be further manipulated after being returned, either manually
+/// or via the `evaluate()` method.
 impl From<&str> for HPN {
     fn from(expr: &str) -> HPN {
         let mut hp = HPN::new();
