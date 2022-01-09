@@ -188,7 +188,7 @@ impl HPN {
         self.regs[Register::T as usize].clone()
     }
 
-    /// Pops the `x` register from the stack, backfilling with the contentx of
+    /// Pops the `x` register from the stack, backfilling with the contents of
     /// the `t` register.
     pub fn pop(&mut self) -> BigDecimal {
         let x = self.x();
@@ -508,18 +508,15 @@ mod tests {
     }
 
     #[test]
-    fn test_stack_backfills_zero() {
-        let mut hp = HPN::from("2 +");
-        assert_eq!(Some(2), hp.x().to_i32());
+    fn test_stack_backfills_with_t() {
+        let mut hp = HPN::from("2 3 5 8");
+        assert_eq!(Some(2), hp.t().to_i32());
         hp.apply(&Atom::Add);
-        assert_eq!(Some(2), hp.x().to_i32());
+        assert_eq!(Some(2), hp.t().to_i32());
         hp.apply(&Atom::Add);
-        assert_eq!(Some(2), hp.x().to_i32());
+        assert_eq!(Some(2), hp.t().to_i32());
         hp.apply(&Atom::Add);
-        assert_eq!(Some(2), hp.x().to_i32());
+        assert_eq!(Some(2), hp.t().to_i32());
         hp.apply(&Atom::Mul);
-        assert_eq!(Some(0), hp.x().to_i32());
-        hp.apply(&Atom::Add);
-        assert_eq!(Some(0), hp.x().to_i32());
     }
 }
