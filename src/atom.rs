@@ -52,17 +52,16 @@ pub enum Atom {
 }
 
 impl Atom {
-    #[must_use]
 
     /// Parses an expression and returns a vector of `Atom`s.
     ///
     /// This operation does not fail. Any unrecognized token is returned as a
     /// `BadToken` for the underlying engine to deal with appropriately.
+    #[must_use]
     pub fn tokenize(line: &str) -> Vec<Atom> {
         line
             .split_ascii_whitespace()
-            .filter_map(|token| Atom::try_from(token).ok())
-            .into_iter()
+            .map(Atom::from)
             .collect()
     }
 
@@ -83,9 +82,9 @@ impl Atom {
     /// If the `Atom` is a `Value`, returns `Some(value)`. If `Atom` is any
     /// other type, returns `None`.
     #[must_use]
-    pub fn value(&self) -> Option<BigDecimal> {
+    pub fn value(&self) -> Option<&BigDecimal> {
         match self {
-            Atom::Value(ref n) => Some(n.clone()),
+            Atom::Value(ref n) => Some(n),
             _ => None,
         }
     }
@@ -228,7 +227,7 @@ mod tests {
     #[test]
     fn test_value_zero() {
         assert_eq!(
-            Some(BigDecimal::zero()),
+            Some(&BigDecimal::zero()),
             Atom::from("0").value(),
         );
     }
@@ -236,7 +235,7 @@ mod tests {
     #[test]
     fn test_value_pi() {
         assert_eq!(
-            BigDecimal::from_str_radix("3.14159265", 10).unwrap(),
+            &BigDecimal::from_str_radix("3.14159265", 10).unwrap(),
             Atom::from("3.14159265").value().unwrap(),
         );
     }
