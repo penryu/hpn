@@ -14,37 +14,34 @@ use std::fmt;
 /// or an operation to perform on one or more of those values (`Add`, `Abs`,
 /// `Exchange`).
 #[derive(Debug, PartialEq)]
-pub enum Atom {
-    /// Arithmetic addition
+pub(crate) enum Atom {
     Add,
-    /// Arithmetic subtraction
-    Sub,
-    /// Arithmetic multiplication
-    Mul,
-    /// Arithmetic real division
-    Div,
-    /// Arithmetic integer division
-    IDiv,
-    /// Integer Remainder
-    Remainder,
-    /// Absolute value
-    Abs,
-    /// Euler's constant (e)
-    Euler,
-    /// Factorial; eg: 5! => (5*4*3*2*1) => 120
-    Factorial,
-    /// Invert x - 1/x
-    InvX,
-    /// pi
-    PI,
-    /// Generate random number in range [0, 1)
-    Random,
-    /// Change size of value in x
+    /// Change sign of value in `x`
     ChangeSign,
-    /// Exchange contents of x and y registers
+    /// Clear the contents of `x`
+    ClearX,
+    Div,
+    IDiv,
+    /// Exchange contents of `x` and `y` registers
     Exchange,
+    Abs,
+    /// _e_
+    Euler,
+    /// n!
+    Factorial,
+    LastX,
+    Mul,
+    PI,
     /// Push copy of x; similar to ENTER key with no input
     Push,
+    /// Generate random number in range [0, 1)
+    Random,
+    /// 1/x
+    Reciprocal,
+    Remainder,
+    /// Rolls the stack "down"; eg, `T -> Z, Z -> Y, Y -> X, X -> T`
+    Roll,
+    Sub,
     /// Pushes value
     Value(BigDecimal),
     /// Represents (and logs) an unrecognized token
@@ -52,41 +49,68 @@ pub enum Atom {
 }
 
 impl Atom {
-
     /// Parses an expression and returns a vector of `Atom`s.
     ///
     /// This operation does not fail. Any unrecognized token is returned as a
     /// `BadToken` for the underlying engine to deal with appropriately.
     #[must_use]
     pub fn tokenize(line: &str) -> Vec<Atom> {
-        line
-            .split_ascii_whitespace()
+        line.split_ascii_whitespace()
             .map(Atom::from)
             .collect()
     }
 
-    /// Indicates whether the given `Atom` is recognized.
-    ///
-    /// Only `BadToken` yields a `false` value.
-    #[must_use]
-    pub fn is_valid(&self) -> bool {
-        !matches!(self, Atom::BadToken(_))
-    }
-
-    /// Predicate indicates if `Atom` is a `Value`.
-    #[must_use]
-    pub fn is_value(&self) -> bool {
-        matches!(self, Atom::Value(_))
-    }
-
-    /// If the `Atom` is a `Value`, returns `Some(value)`. If `Atom` is any
-    /// other type, returns `None`.
-    #[must_use]
-    pub fn value(&self) -> Option<&BigDecimal> {
+    pub fn saves_last_x(&self) -> bool {
         match self {
-            Atom::Value(ref n) => Some(n),
-            _ => None,
+            Atom::Abs |
+                Atom::Add |
+                Atom::ChangeSign |
+                Atom::Div |
+                Atom::Euler |
+                Atom::Factorial |
+                Atom::IDiv |
+                Atom::Mul |
+                Atom::PI |
+                Atom::Random |
+                Atom::Reciprocal |
+                Atom::Remainder |
+                Atom::Sub
+                => true,
+
+            Atom::BadToken(_) |
+                Atom::ClearX |
+                Atom::Exchange |
+                Atom::LastX |
+                Atom::Push |
+                Atom::Roll |
+                Atom::Value(_)
+                => false,
         }
+    }
+
+    pub fn operator(&self) -> Option<&'static str> {
+        let oper = match self {
+            Atom::Abs => "abs",
+            Atom::Add => "+",
+            Atom::ChangeSign => "chs",
+            Atom::ClearX => "clx",
+            Atom::Div => "/",
+            Atom::Euler => "e",
+            Atom::Exchange => "x<>y",
+            Atom::Factorial => "n!",
+            Atom::IDiv => "//",
+            Atom::LastX => "lstx",
+            Atom::Mul => "*",
+            Atom::PI => "pi",
+            Atom::Push => "push",
+            Atom::Random => "rand",
+            Atom::Reciprocal => "1/x",
+            Atom::Remainder => "rmd",
+            Atom::Roll => "roll",
+            Atom::Sub => "-",
+            Atom::BadToken(_) | Atom::Value(_) => return None,
+        };
+        Some(oper)
     }
 }
 
@@ -94,13 +118,14 @@ impl Atom {
 /// ticker tape (calculation log).
 impl fmt::Display for Atom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let repr = match &self {
-            Atom::Value(n) => n.to_string(),
-            Atom::BadToken(raw) => format!("Bad token {:?}", raw.clone()),
-            _ => format!("{:?}", self),
-        };
-
-        write!(f, "{}", repr)
+        match self.operator() {
+            Some(oper) => write!(f, "{}", oper),
+            None => match self {
+                Atom::Value(n) => write!(f, "{}", n),
+                Atom::BadToken(raw) => write!(f, "{}", raw),
+                _ => panic!("Can't display unknown atom"),
+            },
+        }
     }
 }
 
@@ -113,17 +138,20 @@ impl From<&str> for Atom {
             "abs" => Atom::Abs,
             "+" => Atom::Add,
             "chs" => Atom::ChangeSign,
+            "clx" => Atom::ClearX,
             "/" => Atom::Div,
             "e" => Atom::Euler,
-            "exch" => Atom::Exchange,
-            "!" | "n!" => Atom::Factorial,
+            "x<>y" => Atom::Exchange,
+            "n!" => Atom::Factorial,
             "//" => Atom::IDiv,
-            "1/x" => Atom::InvX,
+            "lstx" => Atom::LastX,
             "*" => Atom::Mul,
             "pi" => Atom::PI,
             "push" => Atom::Push,
             "rand" => Atom::Random,
-            "rmd" | "%" => Atom::Remainder,
+            "1/x" => Atom::Reciprocal,
+            "rmd" => Atom::Remainder,
+            "roll" => Atom::Roll,
             "-" => Atom::Sub,
             _ => match token.parse::<BigDecimal>() {
                 Ok(n) => Atom::Value(n),
@@ -135,108 +163,80 @@ impl From<&str> for Atom {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use bigdecimal::{Num, Zero};
+    use crate::atom::Atom;
+    use bigdecimal::{
+        BigDecimal,
+        FromPrimitive,
+        Zero,
+    };
+
+    type TestResult = Result<(), ()>;
 
     #[test]
-    fn test_bad_token() {
-        assert!(!Atom::from("nonsense").is_valid());
+    fn test_bad_token() -> TestResult {
+        match Atom::from("alskdj458gy") {
+            Atom::BadToken(_) => Ok(()),
+            _ => Err(()),
+        }
     }
 
     #[test]
-    fn test_abs() {
+    fn test_atom_creation() {
         assert_eq!(Atom::Abs, Atom::from("abs"));
-    }
-
-    #[test]
-    fn test_add() {
         assert_eq!(Atom::Add, Atom::from("+"));
-    }
-
-    #[test]
-    fn test_change_sign() {
         assert_eq!(Atom::ChangeSign, Atom::from("chs"));
-    }
-
-    #[test]
-    fn test_div() {
+        assert_eq!(Atom::ClearX, Atom::from("clx"));
         assert_eq!(Atom::Div, Atom::from("/"));
-    }
-
-    #[test]
-    fn test_euler() {
         assert_eq!(Atom::Euler, Atom::from("e"));
-    }
-
-    #[test]
-    fn test_exchange() {
-        assert_eq!(Atom::Exchange, Atom::from("exch"));
-    }
-
-    #[test]
-    fn test_factorial_excl() {
-        assert_eq!(Atom::Factorial, Atom::from("!"));
-    }
-
-    #[test]
-    fn test_factorial_n_excl() {
+        assert_eq!(Atom::Exchange, Atom::from("x<>y"));
         assert_eq!(Atom::Factorial, Atom::from("n!"));
-    }
-
-    #[test]
-    fn test_idiv() {
         assert_eq!(Atom::IDiv, Atom::from("//"));
-    }
-
-    #[test]
-    fn test_inv_x() {
-        assert_eq!(Atom::InvX, Atom::from("1/x"));
-    }
-
-    #[test]
-    fn test_mul() {
+        assert_eq!(Atom::LastX, Atom::from("lstx"));
         assert_eq!(Atom::Mul, Atom::from("*"));
-    }
-
-    #[test]
-    fn test_pi() {
         assert_eq!(Atom::PI, Atom::from("pi"));
-    }
-
-    #[test]
-    fn test_push() {
         assert_eq!(Atom::Push, Atom::from("push"));
-    }
-
-    #[test]
-    fn test_random() {
         assert_eq!(Atom::Random, Atom::from("rand"));
-    }
-
-    #[test]
-    fn test_remainder() {
+        assert_eq!(Atom::Reciprocal, Atom::from("1/x"));
         assert_eq!(Atom::Remainder, Atom::from("rmd"));
-        assert_eq!(Atom::Remainder, Atom::from("%"));
+        assert_eq!(Atom::Roll, Atom::from("roll"));
+        assert_eq!(Atom::Sub, Atom::from("-"));
     }
 
     #[test]
-    fn test_sub() {
-        assert_eq!(Atom::Sub, Atom::from("-"));
+    fn test_atom_to_str() {
+        assert_eq!(Some("abs"), Atom::Abs.operator());
+        assert_eq!(Some("+"), Atom::Add.operator());
+        assert_eq!(Some("chs"), Atom::ChangeSign.operator());
+        assert_eq!(Some("clx"), Atom::ClearX.operator());
+        assert_eq!(Some("/"), Atom::Div.operator());
+        assert_eq!(Some("e"), Atom::Euler.operator());
+        assert_eq!(Some("x<>y"), Atom::Exchange.operator());
+        assert_eq!(Some("n!"), Atom::Factorial.operator());
+        assert_eq!(Some("//"), Atom::IDiv.operator());
+        assert_eq!(Some("lstx"), Atom::LastX.operator());
+        assert_eq!(Some("*"), Atom::Mul.operator());
+        assert_eq!(Some("pi"), Atom::PI.operator());
+        assert_eq!(Some("push"), Atom::Push.operator());
+        assert_eq!(Some("rand"), Atom::Random.operator());
+        assert_eq!(Some("1/x"), Atom::Reciprocal.operator());
+        assert_eq!(Some("rmd"), Atom::Remainder.operator());
+        assert_eq!(Some("roll"), Atom::Roll.operator());
+        assert_eq!(Some("-"), Atom::Sub.operator());
     }
 
     #[test]
     fn test_value_zero() {
         assert_eq!(
-            Some(&BigDecimal::zero()),
-            Atom::from("0").value(),
+            Atom::Value(BigDecimal::zero()),
+            Atom::from("0"),
         );
     }
 
     #[test]
-    fn test_value_pi() {
+    fn test_value_real() {
+        let expected = BigDecimal::from_f64(-1.21).unwrap();
         assert_eq!(
-            &BigDecimal::from_str_radix("3.14159265", 10).unwrap(),
-            Atom::from("3.14159265").value().unwrap(),
-        );
+            Atom::Value(expected),
+            Atom::from("-1.21"));
     }
 }

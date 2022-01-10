@@ -10,15 +10,22 @@
 //!
 //! # Quick Start
 //!
-//! TODO: write quick start
+//! Evaluate a sequence of operations and retrieve the result:
+//!
+//! ```
+//! # use hpn::HPN;
+//! # use bigdecimal::ToPrimitive;
+//! let hp17 = HPN::from("4 5 + 6 *");
+//! assert_eq!(Some(54), hp17.x().to_i32());
+//! ```
 
 #![warn(clippy::all, clippy::pedantic)]
 #![deny(missing_docs)]
 
-pub mod atom;
-pub mod hpn;
+mod atom;
+mod hpn;
 
 mod util;
 
 pub use crate::hpn::HPN;
-pub use crate::atom::Atom;
+// pub use crate::atom::Atom;
