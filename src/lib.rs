@@ -6,26 +6,48 @@
 
 //! HP Voyager-inspired text-based RPN calculator implementation
 //!
-//! TODO: go into some more detail
+//! Originating from a deep desire to have an RPN calculator from inside an IRC
+//! session, the `HPN` struct evaluates stack-based calculator instructions in a
+//! HP Voyager-inspired "virtual calculator".
 //!
-//! # Quick Start
+//! Calculator state and history are preserved inside the `HPN` object.
 //!
-//! Evaluate a sequence of operations and retrieve the result:
+//! The current state of registers are available as instance methods; eg,
+//! `hpn.x()`, `hpn.y()`, etc.
 //!
 //! ```
-//! # use hpn::HPN;
-//! # use bigdecimal::ToPrimitive;
-//! let hp17 = HPN::from("4 5 + 6 *");
-//! assert_eq!(Some(54), hp17.x().to_i32());
+//! use hpn::prelude::*;
+//!
+//! let hp = HPN::from("21 9 * 5 / 32 +");
+//! assert_eq!(Some(69.8), hp.x().to_f64());
+//! ```
+//!
+//! Snapshots of each operation performed are available via the `HPN::tape()`
+//! instance method.
+//!
+//! ```
+//! # use hpn::prelude::*;
+//! # let hp = HPN::from("21 9 * 5 / 32 +");
+//! let tape = hp.tape().collect::<Vec<_>>();
+//! println!("{}", tape.join("\n"));
+//! // Output:
+//! // 0: [ t = 0      | z = 0      | y = 0      | x = 0      ]  <- 21
+//! // 1: [ t = 0      | z = 0      | y = 0      | x = 21     ]  <- 9
+//! // 2: [ t = 0      | z = 0      | y = 21     | x = 9      ]  <- *
+//! // 3: [ t = 0      | z = 0      | y = 0      | x = 189    ]  <- 5
+//! // 4: [ t = 0      | z = 0      | y = 189    | x = 5      ]  <- /
+//! // 5: [ t = 0      | z = 0      | y = 0      | x = 37.8   ]  <- 32
+//! // 6: [ t = 0      | z = 0      | y = 37.8   | x = 32     ]  <- +
+//! // 7: [ t = 0      | z = 0      | y = 0      | x = 69.8   ]
 //! ```
 
 #![warn(clippy::all, clippy::pedantic)]
 #![deny(missing_docs)]
 
+pub mod prelude;
+
 mod atom;
 mod hpn;
-
 mod util;
 
 pub use crate::hpn::HPN;
-// pub use crate::atom::Atom;

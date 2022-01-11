@@ -6,8 +6,9 @@
 
 //! Atom
 
-use bigdecimal::BigDecimal;
 use std::fmt;
+
+use crate::prelude::Number;
 
 /// The `Atom` enum represents any whitespace-separated token in an
 /// HPN-evaluated expression. Each instance represents either a value (`Value`),
@@ -43,7 +44,7 @@ pub(crate) enum Atom {
     Roll,
     Sub,
     /// Pushes value
-    Value(BigDecimal),
+    Value(Number),
     /// Represents (and logs) an unrecognized token
     BadToken(String),
 }
@@ -153,7 +154,7 @@ impl From<&str> for Atom {
             "rmd" => Atom::Remainder,
             "roll" => Atom::Roll,
             "-" => Atom::Sub,
-            _ => match token.parse::<BigDecimal>() {
+            _ => match token.parse::<Number>() {
                 Ok(n) => Atom::Value(n),
                 Err(_) => Atom::BadToken(token.to_string()),
             }
@@ -164,9 +165,9 @@ impl From<&str> for Atom {
 #[cfg(test)]
 mod tests {
     use crate::atom::Atom;
-    use bigdecimal::{
-        BigDecimal,
+    use crate::prelude::{
         FromPrimitive,
+        Number,
         Zero,
     };
 
@@ -227,14 +228,14 @@ mod tests {
     #[test]
     fn test_value_zero() {
         assert_eq!(
-            Atom::Value(BigDecimal::zero()),
+            Atom::Value(Number::zero()),
             Atom::from("0"),
         );
     }
 
     #[test]
     fn test_value_real() {
-        let expected = BigDecimal::from_f64(-1.21).unwrap();
+        let expected = Number::from_f64(-1.21).unwrap();
         assert_eq!(
             Atom::Value(expected),
             Atom::from("-1.21"));

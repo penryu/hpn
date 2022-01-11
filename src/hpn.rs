@@ -11,25 +11,21 @@
 //!
 //! [hp_voyager]: https://en.wikipedia.org/wiki/Hewlett-Packard_Voyager_series
 
-use bigdecimal::{
-    BigDecimal,
-    FromPrimitive,
-    ToPrimitive,
-    Zero,
-};
 use lazy_static::lazy_static;
-use rand::{Rng, thread_rng};
 use std::fmt;
 
 use crate::atom::Atom;
+use crate::prelude::{
+    FromPrimitive,
+    Number,
+    Rng,
+    ToPrimitive,
+    Zero,
+};
 use crate::util::factorial;
 
 
 const FIELD_WIDTH: usize = 6;
-
-
-// Alias for the numeric data type.
-pub type Number = BigDecimal;
 
 
 /// Underlying implementation of the 4-register stack.
@@ -99,9 +95,11 @@ impl HPN {
 
     /// Returns the accumulated history of operations
     /// performed in this calculator.
-    #[must_use]
-    pub fn tape(&self) -> &Vec<String> {
-        &self.history
+    pub fn tape(&self) -> impl Iterator<Item=String> {
+        self.history.clone().into_iter()
+            .chain([self.to_string()])
+            .enumerate()
+            .map(|(i, line)| format!("{}: {}", i, line))
     }
 
     /// Applies an atom to the current stack.
@@ -167,7 +165,7 @@ impl HPN {
             Atom::PI => self.push(BIG_PI.clone()),
             Atom::Push => self.push(self.x().clone()),
             Atom::Random => {
-                let rnd_f64: f64 = thread_rng().gen();
+                let rnd_f64: f64 = rand::thread_rng().gen();
                 match Number::from_f64(rnd_f64) {
                     Some(rnd) => self.push(rnd),
                     None => self.log_message(&format!(
@@ -239,8 +237,8 @@ impl Default for HPN {
 
 impl fmt::Display for HPN {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "t: {t:<w$} | z: {z:<w$} | y: {y:<w$} | x: {x:<w$}", w=FIELD_WIDTH,
-            x=self.x(), y=self.y(), z=self.z(), t=self.t())
+        write!(f, "[ t = {t:<w$} | z = {z:<w$} | y = {y:<w$} | x = {x:<w$} ]",
+            w=FIELD_WIDTH, x=self.x(), y=self.y(), z=self.z(), t=self.t())
     }
 }
 
@@ -306,11 +304,11 @@ impl TryFrom<&HPN> for [i32; 4] {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use bigdecimal::{
+    use crate::prelude::{
+        FromStr,
         One,
-        Zero,
         ToPrimitive,
+        Zero,
     };
 
     use super::*;
@@ -338,7 +336,7 @@ mod tests {
     fn test_invalid_token() {
         let hp = HPN::from("IAmBad");
         dbg!(&hp);
-        assert!(hp.tape().last().unwrap().contains("Error"));
+        assert!(hp.history.last().unwrap().contains("Error"));
     }
 
     #[test]
@@ -377,10 +375,8 @@ mod tests {
     #[test]
     fn test_div_by_zero() {
         let hp = HPN::from("3 0 /");
-        let tape = &hp.tape();
         dbg!(&hp);
-        dbg!(&tape);
-        assert!(tape.last().unwrap().starts_with("Error 0"));
+        assert!(hp.history.last().unwrap().starts_with("Error 0"));
         assert_eq!(hp.y().to_i32(), Some(3));
         assert_eq!(hp.x().to_i32(), Some(0));
     }
@@ -412,10 +408,8 @@ mod tests {
     #[test]
     fn test_idiv_by_zero() {
         let hp = HPN::from("3 0 //");
-        let tape = &hp.tape();
         dbg!(&hp);
-        dbg!(&tape);
-        assert!(tape.last().unwrap().starts_with("Error 0"));
+        assert!(hp.history.last().unwrap().starts_with("Error 0"));
         assert_eq!(hp.y().to_i32(), Some(3));
         assert_eq!(hp.x().to_i32(), Some(0));
     }
@@ -493,26 +487,6 @@ mod tests {
     }
 
     #[test]
-    fn test_show_your_work() {
-        let hp = HPN::from("100 9 * 5 / 32 +");
-        // let expected = vec![
-        //     "t: 0    z: 0    y: 0    x: 0     <- 100",
-        //     "t: 0    z: 0    y: 0    x: 100   <- 9",
-        //     "t: 0    z: 0    y: 100  x: 9     <- Mul",
-        //     "t: 0    z: 0    y: 0    x: 900   <- 5",
-        //     "t: 0    z: 0    y: 900  x: 5     <- Div",
-        //     "t: 0    z: 0    y: 0    x: 180   <- 32",
-        //     "t: 0    z: 0    y: 180  x: 32    <- Add",
-        //     "t: 0    z: 0    y: 0    x: 212",
-        // ];
-        dbg!(&hp);
-        dbg!(hp.tape());
-        // for (i, line) in hp.tape().iter().enumerate() {
-        //     assert_eq!(expected[i], line);
-        // }
-    }
-
-    #[test]
     fn test_sample_stack_buster() {
         let mut hp = HPN::from("2 3 5 8 13");
         assert_eq!([13, 8, 5, 3], <[i32;4]>::try_from(&hp).unwrap());
@@ -550,13 +524,5 @@ mod tests {
         let expected = [13, 13, 8, 5];
         let result = <[i32; 4]>::try_from(&hp).unwrap();
         assert_eq!(expected, result);
-    }
-
-    #[ignore]
-    #[test]
-    fn test_output() {
-        let hp = HPN::from("100 9 * 5 / 32 +");
-        dbg!(&hp);
-        panic!()
     }
 }
