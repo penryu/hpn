@@ -1,47 +1,33 @@
 // Copyright 2022 Tim Hammerquist
 //
 // Licensed under the [MIT license](https://opensource.org/licenses/MIT).
-// This file may not be copied, modified, or distributed
-// except according to those terms.
-
-//! HPN - HP-style RPN calculator
-//!
-//! The HPN calculator uses a 4-register stack-based RPN implementation based on
-//! and inspired by the [HP Voyager][hp_voyager] series of calculators.
-//!
-//! [hp_voyager]: https://en.wikipedia.org/wiki/Hewlett-Packard_Voyager_series
+// This file may not be copied, modified, or distributed except according to those terms.
 
 use lazy_static::lazy_static;
 use std::fmt;
 
 use crate::atom::Atom;
-use crate::prelude::{
-    FromPrimitive,
-    Number,
-    Rng,
-    ToPrimitive,
-    Zero,
-};
-use crate::util::factorial;
-
+use crate::prelude::{FromPrimitive, Number, Rng, ToPrimitive, Zero};
+use crate::util::{c_to_f, f_to_c, factorial, help, y_pow_x};
 
 const FIELD_WIDTH: usize = 6;
 
-
 /// Underlying implementation of the 4-register stack.
 pub type Stack = [Number; 4];
-
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Memory {
     last_x: Number,
 }
 
-
 /// Enum used to map registers (X, Y, Z, T) to stack index.
 #[derive(Clone, Debug)]
-enum Register { X = 0, Y, Z, T }
-
+enum Register {
+    X = 0,
+    Y,
+    Z,
+    T,
+}
 
 /// Primary struct backing the HPN engine.
 #[derive(Debug)]
@@ -51,9 +37,13 @@ pub struct HPN {
     memory: Memory,
 }
 
-
 impl HPN {
     /// Constructs new HPN instance, with emtpy tape and 0 in each register.
+    /// ```
+    /// use hpn::prelude::*;
+    ///
+    /// let mut hp = HPN::new();
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         HPN {
@@ -64,56 +54,104 @@ impl HPN {
     }
 
     /// Parses and evaluates the given string, applying each change in turn.
+    /// ```
+    /// # use hpn::prelude::*;
+    /// # let mut hp = HPN::new();
+    /// hp.evaluate("2 6 *");
+    /// assert_eq!(Number::from(12), *hp.x());
+    /// ```
     pub fn evaluate(&mut self, line: &str) {
-        Atom::tokenize(line).iter()
+        Atom::tokenize(line)
+            .iter()
             .for_each(|atom| self.apply(atom));
     }
 
+    /// Clears the history for this calculator object. Does not alter the stack or memory.
+    pub fn clear_tape(&mut self) {
+        self.history.clear();
+    }
+
     /// Returns the value of the `x` register.
+    /// ```
+    /// # use hpn::prelude::*;
+    /// # let mut hp = HPN::new();
+    /// hp.evaluate("1");
+    /// assert_eq!(*hp.x(), Number::one());
+    /// ```
     #[must_use]
     pub fn x(&self) -> &Number {
         &self.stack[Register::X as usize]
     }
 
     /// Returns the value of the `y` register.
+    /// ```
+    /// # use hpn::prelude::*;
+    /// # let mut hp = HPN::new();
+    /// hp.evaluate("0 1");
+    /// assert_eq!(*hp.x(), Number::one());
+    /// assert_eq!(*hp.y(), Number::zero());
+    /// ```
     #[must_use]
     pub fn y(&self) -> &Number {
         &self.stack[Register::Y as usize]
     }
 
     /// Returns the value of the `z` register.
+    /// ```
+    /// # use hpn::prelude::*;
+    /// # let mut hp = HPN::new();
+    /// hp.evaluate("0 1 2");
+    /// assert_eq!(*hp.z(), Number::zero());
+    /// ```
     #[must_use]
     pub fn z(&self) -> &Number {
         &self.stack[Register::Z as usize]
     }
 
     /// Returns the value of the `t` register.
+    /// ```
+    /// # use hpn::prelude::*;
+    /// # let mut hp = HPN::new();
+    /// hp.evaluate("8 4 2 1");
+    /// assert_eq!(*hp.t(), Number::from(8));
+    /// ```
     #[must_use]
     pub fn t(&self) -> &Number {
         &self.stack[Register::T as usize]
     }
 
     /// Returns the accumulated history of operations
-    /// performed in this calculator.
-    pub fn tape(&self) -> impl Iterator<Item=String> {
-        self.history.clone().into_iter()
+    /// performed in this calculator as a lazy iterator of `String`s.
+    /// ```
+    /// # use hpn::prelude::*;
+    /// let hp = HPN::from("3 4 7 - +");
+    /// hp.tape().for_each(|line| println!("{}", line));
+    /// ```
+    pub fn tape(&self) -> impl Iterator<Item = String> {
+        self.history
+            .clone()
+            .into_iter()
             .chain([self.to_string()])
             .enumerate()
-            .map(|(i, line)| format!("{}: {}", i, line))
+            .map(|(i, line)| format!("{:2}: {}", i, line))
     }
 
     /// Applies an atom to the current stack.
+    #[allow(clippy::too_many_lines)]
     fn apply(&mut self, atom: &Atom) {
         self.log_operation(Some(atom));
 
-        lazy_static!{
+        if matches!(atom, Atom::Help) {
+            self.log_message(&help());
+            return;
+        }
+
+        lazy_static! {
             static ref BIG_E: Number = {
-                Number::from_f64(std::f64::consts::E)
-                    .expect("should not fail")
+                Number::from_f64(std::f64::consts::E).expect("should not fail")
             };
             static ref BIG_PI: Number = {
-                Number::from_f64(std::f64::consts::PI)
-                    .expect("should not fail")
+                Number::from_f64(std::f64::consts::PI).expect("should not fail")
             };
         }
 
@@ -127,9 +165,12 @@ impl HPN {
                 let sum = self.y() + self.x();
                 self.pop();
                 self.replace(Register::X, sum);
-            },
+            }
+            Atom::CToF => self.replace(Register::X, c_to_f(self.x())),
             Atom::ChangeSign => self.replace(Register::X, -self.x()),
             Atom::ClearX => self.replace(Register::X, Number::zero()),
+            Atom::Cube => self.replace(Register::X, self.x().cube()),
+            Atom::CubeRoot => self.replace(Register::X, self.x().cbrt()),
             Atom::Div => {
                 let (x, y) = (self.x(), self.y());
                 if x.is_zero() {
@@ -139,13 +180,17 @@ impl HPN {
                     self.pop();
                     self.replace(Register::X, dividend);
                 }
-            },
+            }
             Atom::Euler => self.push(BIG_E.clone()),
             Atom::Exchange => self.stack.swap(0, 1),
+            Atom::FToC => self.replace(Register::X, f_to_c(self.x())),
             Atom::Factorial => match factorial(self.x()) {
-                Some(n) => { self.replace(Register::X, n); },
+                Some(n) => {
+                    self.replace(Register::X, n);
+                }
                 None => self.log_message("Error: failed to narrow X"),
             },
+            Atom::Help => self.log_message(&help()),
             Atom::IDiv => {
                 let x = self.x();
                 if x.is_zero() {
@@ -155,13 +200,13 @@ impl HPN {
                     self.pop();
                     self.replace(Register::X, dividend.round(0));
                 }
-            },
+            }
             Atom::LastX => self.push(self.memory.last_x.clone()),
             Atom::Mul => {
                 let product = self.y() * self.x();
                 self.pop();
                 self.replace(Register::X, product);
-            },
+            }
             Atom::PI => self.push(BIG_PI.clone()),
             Atom::Push => self.push(self.x().clone()),
             Atom::Random => {
@@ -169,12 +214,15 @@ impl HPN {
                 match Number::from_f64(rnd_f64) {
                     Some(rnd) => self.push(rnd),
                     None => self.log_message(&format!(
-                            "Error: Failed to convert value {:?}", rnd_f64)),
+                        "Error: Failed to convert value {:?}",
+                        rnd_f64
+                    )),
                 }
-            },
+            }
             Atom::Reciprocal => match self.x().clone() {
-                x if x.is_zero() =>
-                    self.log_message("Error 0: Division by zero"),
+                x if x.is_zero() => {
+                    self.log_message("Error 0: Division by zero");
+                }
                 x => self.replace(Register::X, 1 / x),
             },
             Atom::Remainder => {
@@ -186,16 +234,26 @@ impl HPN {
                     self.pop();
                     self.replace(Register::X, remainder);
                 }
-            },
+            }
             Atom::Roll => self.stack.rotate_left(1),
+            Atom::Square => self.replace(Register::X, self.x().square()),
+            Atom::SquareRoot => match self.x().sqrt() {
+                Some(result) => self.replace(Register::X, result),
+                None => self.log_message("Error 0"),
+            },
             Atom::Sub => {
                 let difference = self.y() - self.x();
                 self.pop();
                 self.replace(Register::X, difference);
+            }
+            Atom::YToX => match y_pow_x(self.y(), self.x()) {
+                Some(result) => self.replace(Register::X, result),
+                None => self.log_message("Error 0"),
             },
             Atom::Value(n) => self.push(n.clone()),
-            Atom::BadToken(_) => self.log_message(
-                &format!("Error: {:?}", atom)),
+            Atom::BadToken(_) => {
+                self.log_message(&format!("Error: {:?}", atom));
+            }
         }
     }
 
@@ -228,21 +286,29 @@ impl HPN {
     }
 }
 
-
+/// Same as `HPN::new()`
 impl Default for HPN {
     fn default() -> Self {
         HPN::new()
     }
 }
 
+/// Displays the current state of the stack.
 impl fmt::Display for HPN {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[ t = {t:<w$} | z = {z:<w$} | y = {y:<w$} | x = {x:<w$} ]",
-            w=FIELD_WIDTH, x=self.x(), y=self.y(), z=self.z(), t=self.t())
+        write!(
+            f,
+            "[ t = {t:<w$} | z = {z:<w$} | y = {y:<w$} | x = {x:<w$} ]",
+            w = FIELD_WIDTH,
+            x = self.x(),
+            y = self.y(),
+            z = self.z(),
+            t = self.t()
+        )
     }
 }
 
-/// Constructs an HPN instance and applies tokens contained in the expression.
+/// Constructs an HPN instance and evaluates the expression passed.
 impl From<&str> for HPN {
     fn from(expr: &str) -> Self {
         let mut hp = HPN::new();
@@ -254,8 +320,8 @@ impl From<&str> for HPN {
 /// Constructs an HPN instance with the given initial stack.
 impl From<[f64; 4]> for HPN {
     fn from(values: [f64; 4]) -> HPN {
-        let stack: Stack = values.map(|n|
-                Number::from_f64(n).unwrap_or_else(Number::zero));
+        let stack: Stack =
+            values.map(|n| Number::from_f64(n).unwrap_or_else(Number::zero));
         HPN::from(stack)
     }
 }
@@ -263,8 +329,8 @@ impl From<[f64; 4]> for HPN {
 /// Constructs an HPN instance with the given initial stack.
 impl From<[i32; 4]> for HPN {
     fn from(values: [i32; 4]) -> HPN {
-        let stack: Stack = values.map(|n|
-                Number::from_i32(n).unwrap_or_else(Number::zero));
+        let stack: Stack =
+            values.map(|n| Number::from_i32(n).unwrap_or_else(Number::zero));
         HPN::from(stack)
     }
 }
@@ -272,44 +338,54 @@ impl From<[i32; 4]> for HPN {
 /// Constructs an HPN instance with the given initial stack.
 impl From<[Number; 4]> for HPN {
     fn from(stack: Stack) -> HPN {
-        let mut hp = HPN { stack, ..HPN::new() };
+        let mut hp = HPN {
+            stack,
+            ..HPN::new()
+        };
         hp.log_operation(None);
         hp
     }
 }
 
+/// Constructs an HPN instance with the given initial stack.
 impl TryFrom<&HPN> for [f64; 4] {
     type Error = &'static str;
 
     fn try_from(hp: &HPN) -> Result<Self, Self::Error> {
-        hp.stack.iter()
+        hp.stack
+            .iter()
             .enumerate()
-            .try_fold([0.0, 0.0, 0.0, 0.0], |mut acc, (i, d)|
-                Some({ acc[i] = d.to_f64()?; acc }))
+            .try_fold([0.0, 0.0, 0.0, 0.0], |mut acc, (i, d)| {
+                Some({
+                    acc[i] = d.to_f64()?;
+                    acc
+                })
+            })
             .ok_or("conversion failed")
     }
 }
 
+/// Constructs an HPN instance with the given initial stack.
 impl TryFrom<&HPN> for [i32; 4] {
     type Error = &'static str;
 
     fn try_from(hp: &HPN) -> Result<Self, Self::Error> {
-        hp.stack.iter()
+        hp.stack
+            .iter()
             .enumerate()
-            .try_fold([0, 0, 0, 0], |mut acc, (i, d)|
-                Some({ acc[i] = d.to_i32()?; acc }))
+            .try_fold([0, 0, 0, 0], |mut acc, (i, d)| {
+                Some({
+                    acc[i] = d.to_i32()?;
+                    acc
+                })
+            })
             .ok_or("conversion failed")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::{
-        FromStr,
-        One,
-        ToPrimitive,
-        Zero,
-    };
+    use crate::prelude::{FromStr, One, ToPrimitive, Zero};
 
     use super::*;
 
@@ -349,6 +425,20 @@ mod tests {
     fn test_add() {
         let hp = HPN::from("2 3 +");
         assert_eq!(&Number::from(5), hp.x());
+    }
+
+    #[test]
+    fn test_cube() {
+        let hp = HPN::from("2 x^3 1.1 x^3");
+        assert_eq!(&Number::from(8), hp.y());
+        assert_eq!(&Number::from_str("1.331").unwrap(), hp.x());
+    }
+
+    #[test]
+    fn test_cube_root() {
+        let hp = HPN::from("8 cbrt 1.331 cbrt");
+        assert_eq!(&Number::from_i32(2).unwrap(), hp.y());
+        assert_eq!(&Number::from_f64(1.1).unwrap(), hp.x());
     }
 
     #[test]
@@ -475,6 +565,16 @@ mod tests {
     }
 
     #[test]
+    fn test_y_pow_x() {
+        // floating point
+        let hp = HPN::from("1.1 3 y^x");
+        assert_eq!(&Number::from_str("1.331").unwrap(), hp.x());
+        // (rough) integral
+        let hp = HPN::from("2 3 y^x");
+        assert_eq!(&Number::from(8), hp.x());
+    }
+
+    #[test]
     fn test_celsius_to_fahrenheit() {
         let result = HPN::from("100 9 * 5 / 32 +").x().to_i32();
         assert_eq!(Some(212), result);
@@ -489,9 +589,9 @@ mod tests {
     #[test]
     fn test_sample_stack_buster() {
         let mut hp = HPN::from("2 3 5 8 13");
-        assert_eq!([13, 8, 5, 3], <[i32;4]>::try_from(&hp).unwrap());
+        assert_eq!([13, 8, 5, 3], <[i32; 4]>::try_from(&hp).unwrap());
         hp.evaluate("- + 1 / /");
-        assert_eq!([0, 3, 3, 3], <[i32;4]>::try_from(&hp).unwrap());
+        assert_eq!([0, 3, 3, 3], <[i32; 4]>::try_from(&hp).unwrap());
     }
 
     #[test]
@@ -524,5 +624,17 @@ mod tests {
         let expected = [13, 13, 8, 5];
         let result = <[i32; 4]>::try_from(&hp).unwrap();
         assert_eq!(expected, result);
+    }
+
+    /// Used to verify output when run explicitly. Ignored otherwise.
+    #[ignore]
+    #[test]
+    fn test_output() {
+        let hp = HPN::from("21 9 * 5 / 32 +");
+        dbg!(&hp);
+        dbg!(hp.tape().collect::<Vec<_>>());
+        dbg!(hp.x());
+        hp.tape().for_each(|line| println!("{}", line));
+        panic!();
     }
 }

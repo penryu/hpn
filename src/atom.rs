@@ -16,20 +16,27 @@ use crate::prelude::Number;
 /// `Exchange`).
 #[derive(Debug, PartialEq)]
 pub(crate) enum Atom {
+    Abs,
     Add,
+    /// Convert ºC to ºF
+    CToF,
     /// Change sign of value in `x`
     ChangeSign,
     /// Clear the contents of `x`
     ClearX,
+    Cube,
+    CubeRoot,
     Div,
-    IDiv,
     /// Exchange contents of `x` and `y` registers
     Exchange,
-    Abs,
     /// _e_
     Euler,
+    /// Convert ºF to ºC
+    FToC,
     /// n!
     Factorial,
+    Help,
+    IDiv,
     LastX,
     Mul,
     PI,
@@ -42,7 +49,11 @@ pub(crate) enum Atom {
     Remainder,
     /// Rolls the stack "down"; eg, `T -> Z, Z -> Y, Y -> X, X -> T`
     Roll,
+    Square,
+    SquareRoot,
     Sub,
+    /// Raise Y to the power of X
+    YToX,
     /// Pushes value
     Value(Number),
     /// Represents (and logs) an unrecognized token
@@ -56,36 +67,40 @@ impl Atom {
     /// `BadToken` for the underlying engine to deal with appropriately.
     #[must_use]
     pub fn tokenize(line: &str) -> Vec<Atom> {
-        line.split_ascii_whitespace()
-            .map(Atom::from)
-            .collect()
+        line.split_ascii_whitespace().map(Atom::from).collect()
     }
 
     pub fn saves_last_x(&self) -> bool {
         match self {
-            Atom::Abs |
-                Atom::Add |
-                Atom::ChangeSign |
-                Atom::Div |
-                Atom::Euler |
-                Atom::Factorial |
-                Atom::IDiv |
-                Atom::Mul |
-                Atom::PI |
-                Atom::Random |
-                Atom::Reciprocal |
-                Atom::Remainder |
-                Atom::Sub
-                => true,
+            Atom::Abs
+            | Atom::Add
+            | Atom::CToF
+            | Atom::ChangeSign
+            | Atom::Cube
+            | Atom::CubeRoot
+            | Atom::Div
+            | Atom::Euler
+            | Atom::FToC
+            | Atom::Factorial
+            | Atom::IDiv
+            | Atom::Mul
+            | Atom::PI
+            | Atom::Random
+            | Atom::Reciprocal
+            | Atom::Remainder
+            | Atom::Square
+            | Atom::SquareRoot
+            | Atom::Sub
+            | Atom::YToX => true,
 
-            Atom::BadToken(_) |
-                Atom::ClearX |
-                Atom::Exchange |
-                Atom::LastX |
-                Atom::Push |
-                Atom::Roll |
-                Atom::Value(_)
-                => false,
+            Atom::BadToken(_)
+            | Atom::ClearX
+            | Atom::Exchange
+            | Atom::Help
+            | Atom::LastX
+            | Atom::Push
+            | Atom::Roll
+            | Atom::Value(_) => false,
         }
     }
 
@@ -93,12 +108,17 @@ impl Atom {
         let oper = match self {
             Atom::Abs => "abs",
             Atom::Add => "+",
+            Atom::CToF => "ctof",
             Atom::ChangeSign => "chs",
             Atom::ClearX => "clx",
+            Atom::Cube => "x^3",
+            Atom::CubeRoot => "cbrt",
             Atom::Div => "/",
             Atom::Euler => "e",
             Atom::Exchange => "x<>y",
+            Atom::FToC => "ftoc",
             Atom::Factorial => "n!",
+            Atom::Help => "help",
             Atom::IDiv => "//",
             Atom::LastX => "lstx",
             Atom::Mul => "*",
@@ -108,7 +128,10 @@ impl Atom {
             Atom::Reciprocal => "1/x",
             Atom::Remainder => "rmd",
             Atom::Roll => "roll",
+            Atom::Square => "x^2",
+            Atom::SquareRoot => "sqrt",
             Atom::Sub => "-",
+            Atom::YToX => "y^x",
             Atom::BadToken(_) | Atom::Value(_) => return None,
         };
         Some(oper)
@@ -138,12 +161,17 @@ impl From<&str> for Atom {
         match token {
             "abs" => Atom::Abs,
             "+" => Atom::Add,
+            "ctof" => Atom::CToF,
             "chs" => Atom::ChangeSign,
             "clx" => Atom::ClearX,
+            "x^3" => Atom::Cube,
+            "cbrt" => Atom::CubeRoot,
             "/" => Atom::Div,
             "e" => Atom::Euler,
             "x<>y" => Atom::Exchange,
+            "ftoc" => Atom::FToC,
             "n!" => Atom::Factorial,
+            "help" => Atom::Help,
             "//" => Atom::IDiv,
             "lstx" => Atom::LastX,
             "*" => Atom::Mul,
@@ -153,11 +181,14 @@ impl From<&str> for Atom {
             "1/x" => Atom::Reciprocal,
             "rmd" => Atom::Remainder,
             "roll" => Atom::Roll,
+            "x^2" => Atom::Square,
+            "sqrt" => Atom::SquareRoot,
+            "y^x" => Atom::YToX,
             "-" => Atom::Sub,
             _ => match token.parse::<Number>() {
                 Ok(n) => Atom::Value(n),
                 Err(_) => Atom::BadToken(token.to_string()),
-            }
+            },
         }
     }
 }
@@ -165,11 +196,7 @@ impl From<&str> for Atom {
 #[cfg(test)]
 mod tests {
     use crate::atom::Atom;
-    use crate::prelude::{
-        FromPrimitive,
-        Number,
-        Zero,
-    };
+    use crate::prelude::{FromPrimitive, Number, Zero};
 
     type TestResult = Result<(), ()>;
 
@@ -185,12 +212,17 @@ mod tests {
     fn test_atom_creation() {
         assert_eq!(Atom::Abs, Atom::from("abs"));
         assert_eq!(Atom::Add, Atom::from("+"));
+        assert_eq!(Atom::CToF, Atom::from("ctof"));
         assert_eq!(Atom::ChangeSign, Atom::from("chs"));
         assert_eq!(Atom::ClearX, Atom::from("clx"));
+        assert_eq!(Atom::Cube, Atom::from("x^3"));
+        assert_eq!(Atom::CubeRoot, Atom::from("cbrt"));
         assert_eq!(Atom::Div, Atom::from("/"));
         assert_eq!(Atom::Euler, Atom::from("e"));
         assert_eq!(Atom::Exchange, Atom::from("x<>y"));
+        assert_eq!(Atom::FToC, Atom::from("ftoc"));
         assert_eq!(Atom::Factorial, Atom::from("n!"));
+        assert_eq!(Atom::Help, Atom::from("help"));
         assert_eq!(Atom::IDiv, Atom::from("//"));
         assert_eq!(Atom::LastX, Atom::from("lstx"));
         assert_eq!(Atom::Mul, Atom::from("*"));
@@ -200,7 +232,10 @@ mod tests {
         assert_eq!(Atom::Reciprocal, Atom::from("1/x"));
         assert_eq!(Atom::Remainder, Atom::from("rmd"));
         assert_eq!(Atom::Roll, Atom::from("roll"));
+        assert_eq!(Atom::Square, Atom::from("x^2"));
+        assert_eq!(Atom::SquareRoot, Atom::from("sqrt"));
         assert_eq!(Atom::Sub, Atom::from("-"));
+        assert_eq!(Atom::YToX, Atom::from("y^x"));
     }
 
     #[test]
@@ -213,6 +248,7 @@ mod tests {
         assert_eq!(Some("e"), Atom::Euler.operator());
         assert_eq!(Some("x<>y"), Atom::Exchange.operator());
         assert_eq!(Some("n!"), Atom::Factorial.operator());
+        assert_eq!(Some("help"), Atom::Help.operator());
         assert_eq!(Some("//"), Atom::IDiv.operator());
         assert_eq!(Some("lstx"), Atom::LastX.operator());
         assert_eq!(Some("*"), Atom::Mul.operator());
@@ -227,17 +263,12 @@ mod tests {
 
     #[test]
     fn test_value_zero() {
-        assert_eq!(
-            Atom::Value(Number::zero()),
-            Atom::from("0"),
-        );
+        assert_eq!(Atom::Value(Number::zero()), Atom::from("0"),);
     }
 
     #[test]
     fn test_value_real() {
         let expected = Number::from_f64(-1.21).unwrap();
-        assert_eq!(
-            Atom::Value(expected),
-            Atom::from("-1.21"));
+        assert_eq!(Atom::Value(expected), Atom::from("-1.21"));
     }
 }

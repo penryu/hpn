@@ -6,78 +6,139 @@
 
 //! Internal utility functions
 
-use bigdecimal::{
-    BigDecimal,
-    One,
-    ToPrimitive,
-};
+use crate::atom::Atom;
+use crate::prelude::*;
+
+/// Convert Celsius to Fahrenheit
+pub fn c_to_f(n: &Number) -> Number {
+    n * Number::from(9) / Number::from(5) + Number::from(32)
+}
+
+/// Convert Fahrenheit to Celsius
+pub fn f_to_c(n: &Number) -> Number {
+    (n - Number::from(32)) * Number::from(5) / Number::from(9)
+}
 
 /// Computes the factorial of `n`.
 ///
 /// Returns `Some(_)` representing the factorial of `n`, or `None` when `n < 0`.
-///
-/// Fun fact: It's ~25-50% faster to use this `range -> convert -> fold` than it
-/// is to do it in pure `BigDecimal` with a `while` loop.
-pub fn factorial(n: &BigDecimal) -> Option<BigDecimal> {
-    n.to_i32()
-        .filter(|x| *x >= 0)
-        .map(|x| (1 ..= x)
-            .map(BigDecimal::from)
-            .fold(BigDecimal::one(), core::ops::Mul::mul))
+pub fn factorial(n: &Number) -> Option<Number> {
+    n.to_i32().filter(|x| *x >= 0).map(|x| {
+        (1..=x)
+            .map(Number::from)
+            .fold(Number::one(), core::ops::Mul::mul)
+    })
+}
+
+/// Raises y to the power of x
+pub fn y_pow_x(y: &Number, x: &Number) -> Option<Number> {
+    let y = y.to_f64()?;
+    let x = x.to_f64()?;
+    let result = Number::from_f64(y.powf(x))?;
+    Some(result)
+}
+
+pub fn help() -> String {
+    let mut operations = [
+        Atom::Abs,
+        Atom::Add,
+        Atom::CToF,
+        Atom::ChangeSign,
+        Atom::ClearX,
+        Atom::Cube,
+        Atom::CubeRoot,
+        Atom::Div,
+        Atom::Euler,
+        Atom::Exchange,
+        Atom::FToC,
+        Atom::Factorial,
+        Atom::Help,
+        Atom::IDiv,
+        Atom::LastX,
+        Atom::Mul,
+        Atom::PI,
+        Atom::Push,
+        Atom::Random,
+        Atom::Reciprocal,
+        Atom::Remainder,
+        Atom::Roll,
+        Atom::Square,
+        Atom::SquareRoot,
+        Atom::Sub,
+        Atom::YToX,
+    ]
+    .iter()
+    .map(ToString::to_string)
+    .collect::<Vec<_>>();
+
+    operations.sort();
+
+    String::from("Supported operations:\n") + &operations.join(" ") + "\n"
 }
 
 #[cfg(test)]
 mod tests {
-    use bigdecimal::{
-        BigDecimal,
-        FromPrimitive,
-        One,
-        Zero,
-    };
-    use crate::util::factorial;
-    use std::str::FromStr;
+    use super::*;
 
     #[test]
-    fn test_fractional_factorial() {
-        let n = BigDecimal::from_f64(5.005).unwrap();
-        assert_eq!(Some(BigDecimal::from(120)), factorial(&n));
+    fn test_c_to_f() {
+        assert_eq!(Number::from(32), c_to_f(&Number::zero()));
+        assert_eq!(Number::from(212), c_to_f(&Number::from(100)));
     }
 
     #[test]
-    fn test_negative_factorial() {
-        assert_eq!(None, factorial(&BigDecimal::from(-1)));
+    fn test_f_to_c() {
+        assert_eq!(Number::zero(), f_to_c(&Number::from(32)));
+        assert_eq!(Number::from(100), f_to_c(&Number::from(212)));
     }
 
     #[test]
-    fn test_zero_factorial() {
-        assert_eq!(Some(BigDecimal::one()), factorial(&BigDecimal::zero()));
+    fn test_y_pow_x() {
+        assert_eq!(
+            Number::one(),
+            y_pow_x(&Number::one(), &Number::zero()).unwrap()
+        );
+        assert_eq!(
+            Number::from(8),
+            y_pow_x(&Number::from(2), &Number::from(3)).unwrap()
+        );
+        assert_eq!(
+            Number::from_str("1.331").unwrap(),
+            y_pow_x(&Number::from_f64(1.1).unwrap(), &Number::from(3)).unwrap()
+        );
     }
 
     #[test]
-    fn test_one_factorial() {
-        let big_one = BigDecimal::one();
-        let result = factorial(&big_one);
-        assert_eq!(Some(big_one), result);
+    fn test_factorial_edge_cases() {
+        // negative
+        assert_eq!(None, factorial(&Number::from(-1)));
+        // zero
+        assert_eq!(Some(Number::one()), factorial(&Number::zero()));
+        // one
+        assert_eq!(Some(Number::one()), factorial(&Number::one()));
+        // fractional
+        let n = Number::from_f64(5.005).unwrap();
+        assert_eq!(Some(Number::from(120)), factorial(&n));
     }
 
     #[test]
     fn test_small_factorial() {
-        let result = factorial(&BigDecimal::from(11));
-        let expected = BigDecimal::from(39_916_800);
+        let result = factorial(&Number::from(11));
+        let expected = Number::from(39_916_800);
         assert_eq!(Some(expected), result);
     }
 
     #[test]
     fn test_big_factorial() {
-        let result = factorial(&BigDecimal::from(253));
+        let result = factorial(&Number::from(253));
         let expected = "51734609926400789218043308997295274695423561272066399607484636163134302903130041238314437828111213744932542876617296316904840977852744354743364096544589631199800576352102197345093407901685444661637384445171444589249826159309289810622514481898739824349965672944938199095203108731528570965561754517676626034976542767771987626709597099937322577683908278497279328468806763572731103332796695726049211496386749680456221513530752014396144012492800000000000000000000000000000000000000000000000000000000000000";
-        assert_eq!(BigDecimal::from_str(expected).ok(), result);
+        assert_eq!(Number::from_str(expected).ok(), result);
     }
 
     #[test]
     fn test_bigger_factorial() {
-        let result = factorial(&BigDecimal::from(1001));
+        let result = factorial(&Number::from(1001));
         let expected = "402789647337170867317246136356926989705094239074925347176343710340368450911027649612636252695456374205280468598807393254690298539867803367460225153499614535588421928591160833678742451354915921252299285456946271396995850437959540645019696372741142787347450281325324373824456300226871609431497826989489109522725791691167945698509282421538632966523376679891823696900982075223188279465194065489111498586522997573307838057934994706212934291477882221464914058745808179795130018969175605739824237247684512790169648013778158661520384916357285547219660337504067910087936301580874662367543921288988208261944834178369169805682489420504038334529389177845089679546075023305854006141256288633820079940395329251563788399404652902154519302928365169452383531030755684578503851488154092323576150311569325891190105926118761607100286827930472944913272420825078912158741589850136017030887975452922434889688775883386977825215904423682478943313806072144097432418695807412571292308739802481089407002523955080148184062810447564594783139830113821372260474145316521647368313934670783858482781506915288378941348078689691815657785305896912277993200639858696294199549107738635599538328374931258525869323348477334798827676297868823693023377418942304272267800509765805435653787530370118261219994752588866451072715583785495394684524593296728611334955079882857173250037068541860372512693170819259309411027837176612444692649174536429745421086287708588130082168792750697158901737130221751430550976429258055277255676893874108456870904122902259417224707137723406125811549952159629766771063079472679280213882978523785424760309678138268708239764925768714349554665438389311198715040908077757086900159389712443987670244241787904585093011546861502058550090914877900852701619648229332192401075747543562989953271508977501771085759521631427816116191761031257454497039673414248149210836002497114107565960458576525212556159634975715552638678172137468172843066451093984443636560722213668172225585711566558134467392654185460222589723312097599987253417831473939565071006344352518096564427781204200068323913056897090916602712260306869786107237077572445866572945760977721639408338430009976028970539150822336553856613962747814621747092348996915755983464741082000337526945990059365493439921937093368896754791416759604324895514660325913157843796039917819613717350380997781225472000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-        assert_eq!(BigDecimal::from_str(expected).ok(), result);
+        assert_eq!(Number::from_str(expected).ok(), result);
     }
 }
