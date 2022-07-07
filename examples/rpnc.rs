@@ -7,9 +7,10 @@
 //! Execution stops on EOF (^D).
 
 use hpn::prelude::*;
+use std::env;
 use std::io::{stdin, stdout, Write};
 
-fn prompt(message: &str) -> Option<String> {
+fn read(message: &str) -> Option<String> {
     print!("{}", message);
     stdout().flush().expect("failed to flush stdout");
 
@@ -21,13 +22,26 @@ fn prompt(message: &str) -> Option<String> {
     }
 }
 
+fn eval_print(rpnc: &mut HPN, expr: &str) {
+    rpnc.evaluate(expr);
+    rpnc.tape().for_each(|line| println!("{}", line));
+    println!("=> {}", rpnc.x());
+    rpnc.clear_tape();
+}
+
 fn main() {
     let mut hp = HPN::new();
 
-    while let Some(expr) = prompt("> ") {
-        hp.evaluate(&expr);
-        hp.tape().for_each(|line| println!("{}", line));
-        println!("=> {}", hp.x());
-        hp.clear_tape();
+    let args: Vec<_> = env::args().skip(1).collect();
+
+    match args.len() {
+        0 => {
+            while let Some(expr) = read("> ") {
+                eval_print(&mut hp, &expr);
+            }
+        }
+        _ => {
+            eval_print(&mut hp, &args.join(" "));
+        }
     }
 }
