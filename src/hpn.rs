@@ -4,13 +4,14 @@
 // This file may not be copied, modified, or distributed except according to those terms.
 
 use lazy_static::lazy_static;
-use std::fmt;
+use std::fmt::{self, Write};
 
 use crate::atom::Atom;
 use crate::prelude::{FromPrimitive, Number, Rng, ToPrimitive, Zero};
 use crate::util::{c_to_f, f_to_c, factorial, help, y_pow_x};
 
-const FIELD_WIDTH: usize = 6;
+const PRECISION: usize = 3;
+const WIDTH: usize = 8;
 
 /// Underlying implementation of the 4-register stack.
 pub type Stack = [Number; 4];
@@ -147,12 +148,10 @@ impl HPN {
         }
 
         lazy_static! {
-            static ref BIG_E: Number = {
-                Number::from_f64(std::f64::consts::E).expect("should not fail")
-            };
-            static ref BIG_PI: Number = {
-                Number::from_f64(std::f64::consts::PI).expect("should not fail")
-            };
+            static ref BIG_E: Number =
+                Number::from_f64(std::f64::consts::E).expect("should not fail");
+            static ref BIG_PI: Number =
+                Number::from_f64(std::f64::consts::PI).expect("should not fail");
         }
 
         if atom.saves_last_x() {
@@ -213,10 +212,9 @@ impl HPN {
                 let rnd_f64: f64 = rand::thread_rng().gen();
                 match Number::from_f64(rnd_f64) {
                     Some(rnd) => self.push(rnd),
-                    None => self.log_message(&format!(
-                        "Error: Failed to convert value {:?}",
-                        rnd_f64
-                    )),
+                    None => {
+                        self.log_message(&format!("Error: Failed to convert value {:?}", rnd_f64));
+                    }
                 }
             }
             Atom::Reciprocal => match self.x().clone() {
@@ -264,7 +262,7 @@ impl HPN {
     fn log_operation(&mut self, opt_atom: Option<&Atom>) {
         let mut s = self.to_string();
         if let Some(atom) = opt_atom {
-            s.push_str(&format!("  <- {}", atom));
+            write!(s, "  <- {}", atom).unwrap();
         }
         self.log_message(&s);
     }
@@ -298,12 +296,13 @@ impl fmt::Display for HPN {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "[ t = {t:<w$} | z = {z:<w$} | y = {y:<w$} | x = {x:<w$} ]",
-            w = FIELD_WIDTH,
+            "[ T: {t:w$.p$} | Z: {z:w$.p$} | Y: {y:w$.p$} | X: {x:w$.p$} ]",
+            w = WIDTH,
+            p = PRECISION,
             x = self.x(),
             y = self.y(),
             z = self.z(),
-            t = self.t()
+            t = self.t(),
         )
     }
 }
@@ -320,8 +319,7 @@ impl From<&str> for HPN {
 /// Constructs an HPN instance with the given initial stack.
 impl From<[f64; 4]> for HPN {
     fn from(values: [f64; 4]) -> HPN {
-        let stack: Stack =
-            values.map(|n| Number::from_f64(n).unwrap_or_else(Number::zero));
+        let stack: Stack = values.map(|n| Number::from_f64(n).unwrap_or_else(Number::zero));
         HPN::from(stack)
     }
 }
@@ -329,8 +327,7 @@ impl From<[f64; 4]> for HPN {
 /// Constructs an HPN instance with the given initial stack.
 impl From<[i32; 4]> for HPN {
     fn from(values: [i32; 4]) -> HPN {
-        let stack: Stack =
-            values.map(|n| Number::from_i32(n).unwrap_or_else(Number::zero));
+        let stack: Stack = values.map(|n| Number::from_i32(n).unwrap_or_else(Number::zero));
         HPN::from(stack)
     }
 }
