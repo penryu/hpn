@@ -6,9 +6,20 @@
 //!
 //! Execution stops on EOF (^D).
 
+#![warn(clippy::all, clippy::pedantic)]
+#![deny(missing_docs)]
+
 use hpn::prelude::*;
 use std::env;
 use std::io::{stdin, stdout, Write};
+use std::path::Path;
+
+fn eval_print(rpnc: &mut HPN, expr: &str) {
+    rpnc.evaluate(expr);
+    rpnc.tape().for_each(|line| println!("{}", line));
+    println!("=> {}", rpnc.x());
+    rpnc.clear_tape();
+}
 
 fn read(message: &str) -> Option<String> {
     print!("{}", message);
@@ -22,26 +33,28 @@ fn read(message: &str) -> Option<String> {
     }
 }
 
-fn eval_print(rpnc: &mut HPN, expr: &str) {
-    rpnc.evaluate(expr);
-    rpnc.tape().for_each(|line| println!("{}", line));
-    println!("=> {}", rpnc.x());
-    rpnc.clear_tape();
+fn print_version(path: &str) {
+    let my_name = Path::new(path).file_name().unwrap().to_str().unwrap();
+    let version = env!("CARGO_PKG_VERSION");
+
+    println!("{} {}", my_name, version);
 }
 
 fn main() {
     let mut hp = HPN::new();
+    let mut args = env::args();
+    let bin_path = &args.next().unwrap();
 
-    let args: Vec<_> = env::args().skip(1).collect();
+    match &args.collect::<Vec<_>>()[..] {
+        [] => {
+            print_version(bin_path);
 
-    match args.len() {
-        0 => {
             while let Some(expr) = read("> ") {
                 eval_print(&mut hp, &expr);
             }
         }
-        _ => {
-            eval_print(&mut hp, &args.join(" "));
+        expr => {
+            eval_print(&mut hp, &expr.join(" "));
         }
     }
 }
