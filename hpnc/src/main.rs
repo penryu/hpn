@@ -14,11 +14,11 @@ use std::env;
 use std::io::{stdin, stdout, Write};
 use std::path::Path;
 
-fn eval_print(rpnc: &mut HPN, expr: &str) {
-    rpnc.evaluate(expr);
-    rpnc.tape().for_each(|line| println!("{}", line));
-    println!("=> {}", rpnc.x());
-    rpnc.clear_tape();
+fn eval_print(hpnc: &mut HPN, expr: &str) {
+    hpnc.evaluate(expr);
+    hpnc.tape().for_each(|line| println!("{}", line));
+    println!("=> {}", hpnc.x());
+    hpnc.clear_tape();
 }
 
 fn read(message: &str) -> Option<String> {

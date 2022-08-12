@@ -43,8 +43,7 @@
 //! // 7: [ t = 0      | z = 0      | y = 0      | x = 69.8   ]
 //! ```
 //!
-//! For a simple implementation of an interactive calculator, see the `rpnc` program in
-//! `examples/`.
+//! For a simple implementation of an interactive calculator, see the `hpnc` workspace.
 //!
 //! [hp_voyager]: https://en.wikipedia.org/wiki/Hewlett-Packard_Voyager_series
 

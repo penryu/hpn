@@ -1,6 +1,9 @@
+[workspace]
+members = ["hpnc"]
+
 [package]
 name = "hpn"
-version = "0.6.1"
+version = "0.6.2"
 authors = ["Tim Hammerquist"]
 homepage = "https://github.com/penryu/hpn"
 repository = "https://github.com/penryu/hpn"
@@ -12,11 +15,9 @@ description = """
 Text-based RPN-style calculator in the HP Voyager tradition.
 """
 
-include = ["src/", "COPYRIGHT.txt", "LICENSE.txt", "README.md"]
+include = ["src/", "LICENSE.txt", "README.md"]
 
 [dependencies]
 bigdecimal = "0.3.0"
 lazy_static = "1.4.0"
 rand = "0.8.4"
-
-[features]
