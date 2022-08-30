@@ -3,7 +3,7 @@ members = ["hpnc"]
 
 [package]
 name = "hpn"
-version = "0.6.2"
+version = "0.6.3"
 authors = ["Tim Hammerquist"]
 homepage = "https://github.com/penryu/hpn"
 repository = "https://github.com/penryu/hpn"
@@ -19,5 +19,6 @@ include = ["src/", "LICENSE.txt", "README.md"]
 
 [dependencies]
 bigdecimal = "0.3.0"
+getrandom = { version = "~0.2", features = ["js"] }
 lazy_static = "1.4.0"
 rand = "0.8.4"
