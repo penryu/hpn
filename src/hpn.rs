@@ -1,7 +1,9 @@
-// Copyright 2022 Tim Hammerquist
+// Copyright 2023 Tim Hammerquist
 //
 // Licensed under the [MIT license](https://opensource.org/licenses/MIT).
 // This file may not be copied, modified, or distributed except according to those terms.
+
+#![warn(clippy::all, clippy::pedantic)]
 
 use lazy_static::lazy_static;
 use std::fmt::{self, Write};
@@ -39,25 +41,10 @@ pub struct HPN {
 }
 
 impl HPN {
-    /// Constructs new HPN instance, with emtpy tape and 0 in each register.
-    /// ```
-    /// use hpn::prelude::*;
-    ///
-    /// let mut hp = HPN::new();
-    /// ```
-    #[must_use]
-    pub fn new() -> Self {
-        HPN {
-            history: vec![],
-            memory: Memory::default(),
-            stack: Stack::default(),
-        }
-    }
-
     /// Parses and evaluates the given string, applying each change in turn.
     /// ```
-    /// # use hpn::prelude::*;
-    /// # let mut hp = HPN::new();
+    /// use hpn::prelude::*;
+    /// let mut hp = HPN::default();
     /// hp.evaluate("2 6 *");
     /// assert_eq!(Number::from(12), *hp.x());
     /// ```
@@ -75,7 +62,7 @@ impl HPN {
     /// Returns the value of the `x` register.
     /// ```
     /// # use hpn::prelude::*;
-    /// # let mut hp = HPN::new();
+    /// let mut hp = HPN::default();
     /// hp.evaluate("1");
     /// assert_eq!(*hp.x(), Number::one());
     /// ```
@@ -87,8 +74,7 @@ impl HPN {
     /// Returns the value of the `y` register.
     /// ```
     /// # use hpn::prelude::*;
-    /// # let mut hp = HPN::new();
-    /// hp.evaluate("0 1");
+    /// let hp = HPN::from("0 1");
     /// assert_eq!(*hp.x(), Number::one());
     /// assert_eq!(*hp.y(), Number::zero());
     /// ```
@@ -100,8 +86,7 @@ impl HPN {
     /// Returns the value of the `z` register.
     /// ```
     /// # use hpn::prelude::*;
-    /// # let mut hp = HPN::new();
-    /// hp.evaluate("0 1 2");
+    /// let hp = HPN::from("0 1 2");
     /// assert_eq!(*hp.z(), Number::zero());
     /// ```
     #[must_use]
@@ -112,8 +97,7 @@ impl HPN {
     /// Returns the value of the `t` register.
     /// ```
     /// # use hpn::prelude::*;
-    /// # let mut hp = HPN::new();
-    /// hp.evaluate("8 4 2 1");
+    /// let hp = HPN::from("8 4 2 1");
     /// assert_eq!(*hp.t(), Number::from(8));
     /// ```
     #[must_use]
@@ -134,7 +118,7 @@ impl HPN {
             .into_iter()
             .chain([self.to_string()])
             .enumerate()
-            .map(|(i, line)| format!("{:2}: {}", i, line))
+            .map(|(i, line)| format!("{i:2}: {line}"))
     }
 
     /// Applies an atom to the current stack.
@@ -213,7 +197,7 @@ impl HPN {
                 match Number::from_f64(rnd_f64) {
                     Some(rnd) => self.push(rnd),
                     None => {
-                        self.log_message(&format!("Error: Failed to convert value {:?}", rnd_f64));
+                        self.log_message(&format!("Error: Failed to convert value {rnd_f64:?}"));
                     }
                 }
             }
@@ -250,7 +234,7 @@ impl HPN {
             },
             Atom::Value(n) => self.push(n.clone()),
             Atom::BadToken(_) => {
-                self.log_message(&format!("Error: {:?}", atom));
+                self.log_message(&format!("Error: {atom:?}"));
             }
         }
     }
@@ -262,7 +246,7 @@ impl HPN {
     fn log_operation(&mut self, opt_atom: Option<&Atom>) {
         let mut s = self.to_string();
         if let Some(atom) = opt_atom {
-            write!(s, "  <- {}", atom).unwrap();
+            write!(s, "  <- {atom}").unwrap();
         }
         self.log_message(&s);
     }
@@ -284,10 +268,19 @@ impl HPN {
     }
 }
 
-/// Same as `HPN::new()`
+/// Constructs new HPN instance, with emtpy tape and 0 in each register.
+/// ```
+/// use hpn::prelude::*;
+///
+/// let mut hp = HPN::default();
+/// ```
 impl Default for HPN {
     fn default() -> Self {
-        HPN::new()
+        HPN {
+            history: vec![],
+            memory: Memory::default(),
+            stack: Stack::default(),
+        }
     }
 }
 
@@ -310,7 +303,7 @@ impl fmt::Display for HPN {
 /// Constructs an HPN instance and evaluates the expression passed.
 impl From<&str> for HPN {
     fn from(expr: &str) -> Self {
-        let mut hp = HPN::new();
+        let mut hp = HPN::default();
         hp.evaluate(expr);
         hp
     }
@@ -337,7 +330,7 @@ impl From<[Number; 4]> for HPN {
     fn from(stack: Stack) -> HPN {
         let mut hp = HPN {
             stack,
-            ..HPN::new()
+            ..HPN::default()
         };
         hp.log_operation(None);
         hp
@@ -397,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_returns_stack_unset() {
-        let hp = HPN::new();
+        let hp = HPN::default();
         let zero = Number::zero();
         assert_eq!(&zero, hp.x());
         assert_eq!(&zero, hp.y());
@@ -534,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_random() {
-        let mut hp = HPN::new();
+        let mut hp = HPN::default();
         for _ in 0..4 {
             hp.apply(&Atom::Random);
             let rnd = hp.x();
@@ -631,7 +624,7 @@ mod tests {
         dbg!(&hp);
         dbg!(hp.tape().collect::<Vec<_>>());
         dbg!(hp.x());
-        hp.tape().for_each(|line| println!("{}", line));
+        hp.tape().for_each(|line| println!("{line}"));
         panic!();
     }
 }

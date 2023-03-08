@@ -16,13 +16,13 @@ use std::path::Path;
 
 fn eval_print(hpnc: &mut HPN, expr: &str) {
     hpnc.evaluate(expr);
-    hpnc.tape().for_each(|line| println!("{}", line));
+    hpnc.tape().for_each(|line| println!("{line}"));
     println!("=> {}", hpnc.x());
     hpnc.clear_tape();
 }
 
 fn read(message: &str) -> Option<String> {
-    print!("{}", message);
+    print!("{message}");
     stdout().flush().expect("failed to flush stdout");
 
     let mut buffer = String::new();
@@ -37,11 +37,11 @@ fn print_version(path: &str) {
     let my_name = Path::new(path).file_name().unwrap().to_str().unwrap();
     let version = env!("CARGO_PKG_VERSION");
 
-    println!("{} {}", my_name, version);
+    println!("{my_name} {version}");
 }
 
 fn main() {
-    let mut hp = HPN::new();
+    let mut hp = HPN::default();
     let mut args = env::args();
     let bin_path = &args.next().unwrap();
 

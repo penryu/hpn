@@ -143,10 +143,10 @@ impl Atom {
 impl fmt::Display for Atom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.operator() {
-            Some(oper) => write!(f, "{}", oper),
+            Some(oper) => write!(f, "{oper}"),
             None => match self {
-                Atom::Value(n) => write!(f, "{}", n),
-                Atom::BadToken(raw) => write!(f, "{}", raw),
+                Atom::Value(n) => write!(f, "{n}"),
+                Atom::BadToken(raw) => write!(f, "{raw}"),
                 _ => panic!("Can't display unknown atom"),
             },
         }
