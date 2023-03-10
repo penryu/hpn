@@ -32,21 +32,58 @@ enum Register {
     T,
 }
 
+/// Stores history of operations, like paper tape
+#[derive(Clone, Debug, Default)]
+struct History(Vec<String>);
+
+impl History {
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    fn lines(&self) -> impl Iterator<Item = String> {
+        println!("mark2");
+        self.0.clone().into_iter()
+    }
+
+    fn log(&mut self, message: &str) {
+        self.0.push(message.to_owned());
+    }
+}
+
+impl ToString for History {
+    fn to_string(&self) -> String {
+        let rows = self.lines().collect::<Vec<_>>();
+        rows.join("\n")
+    }
+}
+
 /// Primary struct backing the HPN engine.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HPN {
-    history: Vec<String>,
+    history: History,
     stack: Stack,
     memory: Memory,
 }
 
 impl HPN {
+    /// Clears the history for this calculator object. Does not alter the stack or memory.
+    pub fn clear_tape(&mut self) {
+        self.history.clear();
+    }
+
     /// Parses and evaluates the given string, applying each change in turn.
     /// ```
     /// use hpn::prelude::*;
     /// let mut hp = HPN::default();
-    /// hp.evaluate("2 6 *");
-    /// assert_eq!(Number::from(12), *hp.x());
+    /// hp.evaluate("4 3 2 1");
+    /// println!("{hp}");
+    /// // Output:
+    /// //  0: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:    0.000 ]  <- 4
+    /// //  1: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:    4.000 ]  <- 3
+    /// //  2: [ T:    0.000 | Z:    0.000 | Y:    4.000 | X:    3.000 ]  <- 2
+    /// //  3: [ T:    0.000 | Z:    4.000 | Y:    3.000 | X:    2.000 ]  <- 1
+    /// //  4: [ T:    4.000 | Z:    3.000 | Y:    2.000 | X:    1.000 ]
     /// ```
     pub fn evaluate(&mut self, line: &str) {
         Atom::tokenize(line)
@@ -54,17 +91,11 @@ impl HPN {
             .for_each(|atom| self.apply(atom));
     }
 
-    /// Clears the history for this calculator object. Does not alter the stack or memory.
-    pub fn clear_tape(&mut self) {
-        self.history.clear();
-    }
-
     /// Returns the value of the `x` register.
     /// ```
     /// # use hpn::prelude::*;
-    /// let mut hp = HPN::default();
-    /// hp.evaluate("1");
-    /// assert_eq!(*hp.x(), Number::one());
+    /// # let hp = HPN::from("3 2 1 0");
+    /// assert_eq!(*hp.x(), Number::zero());
     /// ```
     #[must_use]
     pub fn x(&self) -> &Number {
@@ -74,9 +105,8 @@ impl HPN {
     /// Returns the value of the `y` register.
     /// ```
     /// # use hpn::prelude::*;
-    /// let hp = HPN::from("0 1");
-    /// assert_eq!(*hp.x(), Number::one());
-    /// assert_eq!(*hp.y(), Number::zero());
+    /// # let hp = HPN::from("3 2 1 0");
+    /// assert_eq!(*hp.y(), Number::one());
     /// ```
     #[must_use]
     pub fn y(&self) -> &Number {
@@ -86,8 +116,8 @@ impl HPN {
     /// Returns the value of the `z` register.
     /// ```
     /// # use hpn::prelude::*;
-    /// let hp = HPN::from("0 1 2");
-    /// assert_eq!(*hp.z(), Number::zero());
+    /// let hp = HPN::from("3 2 1 0");
+    /// assert_eq!(*hp.z(), Number::from(2));
     /// ```
     #[must_use]
     pub fn z(&self) -> &Number {
@@ -97,8 +127,8 @@ impl HPN {
     /// Returns the value of the `t` register.
     /// ```
     /// # use hpn::prelude::*;
-    /// let hp = HPN::from("8 4 2 1");
-    /// assert_eq!(*hp.t(), Number::from(8));
+    /// let hp = HPN::from("3 2 1 0");
+    /// assert_eq!(*hp.t(), Number::from(3));
     /// ```
     #[must_use]
     pub fn t(&self) -> &Number {
@@ -114,8 +144,7 @@ impl HPN {
     /// ```
     pub fn tape(&self) -> impl Iterator<Item = String> {
         self.history
-            .clone()
-            .into_iter()
+            .lines()
             .chain([self.to_string()])
             .enumerate()
             .map(|(i, line)| format!("{i:2}: {line}"))
@@ -240,7 +269,7 @@ impl HPN {
     }
 
     fn log_message(&mut self, message: &str) {
-        self.history.push(message.to_owned());
+        self.history.log(message);
     }
 
     fn log_operation(&mut self, opt_atom: Option<&Atom>) {
@@ -277,7 +306,7 @@ impl HPN {
 impl Default for HPN {
     fn default() -> Self {
         HPN {
-            history: vec![],
+            history: History::default(),
             memory: Memory::default(),
             stack: Stack::default(),
         }
@@ -311,7 +340,7 @@ impl From<&str> for HPN {
 
 /// Constructs an HPN instance with the given initial stack.
 impl From<[f64; 4]> for HPN {
-    fn from(values: [f64; 4]) -> HPN {
+    fn from(values: [f64; 4]) -> Self {
         let stack: Stack = values.map(|n| Number::from_f64(n).unwrap_or_else(Number::zero));
         HPN::from(stack)
     }
@@ -319,7 +348,7 @@ impl From<[f64; 4]> for HPN {
 
 /// Constructs an HPN instance with the given initial stack.
 impl From<[i32; 4]> for HPN {
-    fn from(values: [i32; 4]) -> HPN {
+    fn from(values: [i32; 4]) -> Self {
         let stack: Stack = values.map(|n| Number::from_i32(n).unwrap_or_else(Number::zero));
         HPN::from(stack)
     }
@@ -327,8 +356,8 @@ impl From<[i32; 4]> for HPN {
 
 /// Constructs an HPN instance with the given initial stack.
 impl From<[Number; 4]> for HPN {
-    fn from(stack: Stack) -> HPN {
-        let mut hp = HPN {
+    fn from(stack: Stack) -> Self {
+        let mut hp = Self {
             stack,
             ..HPN::default()
         };
@@ -337,7 +366,7 @@ impl From<[Number; 4]> for HPN {
     }
 }
 
-/// Constructs an HPN instance with the given initial stack.
+/// Attempts to convert an HPN instance to an [f64; 4].
 impl TryFrom<&HPN> for [f64; 4] {
     type Error = &'static str;
 
@@ -355,7 +384,7 @@ impl TryFrom<&HPN> for [f64; 4] {
     }
 }
 
-/// Constructs an HPN instance with the given initial stack.
+/// Attempts to convert an HPN instance to an [i32; 4].
 impl TryFrom<&HPN> for [i32; 4] {
     type Error = &'static str;
 
@@ -378,6 +407,55 @@ mod tests {
     use crate::prelude::{FromStr, One, ToPrimitive, Zero};
 
     use super::*;
+
+    /*
+     * History
+     */
+
+    #[test]
+    fn history_log() {
+        let mut hist = History::default();
+        assert!(hist.0.len().is_zero());
+        hist.log("message 1");
+        hist.log("message 2");
+        assert_eq!(2, hist.0.len());
+        assert_eq!("message 2", hist.0.last().unwrap());
+    }
+
+    #[test]
+    fn history_clear() {
+        let mut hist = History::default();
+        hist.log("message 1");
+        hist.log("message 2");
+        hist.clear();
+        assert_eq!(0, hist.0.len());
+    }
+
+    #[test]
+    fn history_lines() {
+        let mut hist = History::default();
+        hist.log("message 1");
+        hist.log("message 2");
+        let mut lines = hist.lines();
+        assert_eq!("message 1", lines.next().unwrap());
+        assert_eq!("message 2", lines.next().unwrap());
+        assert!(lines.next().is_none());
+    }
+
+    #[test]
+    fn history_clone() {
+        let mut hist1 = History::default();
+        hist1.log("message 1");
+        hist1.log("message 2");
+        let hist2 = hist1.clone();
+        hist1.clear();
+        assert_eq!(0, hist1.0.len());
+        assert_eq!(2, hist2.0.len());
+    }
+
+    /*
+     * HPN
+     */
 
     #[test]
     fn test_returns_stack_set() {
@@ -402,7 +480,7 @@ mod tests {
     fn test_invalid_token() {
         let hp = HPN::from("IAmBad");
         dbg!(&hp);
-        assert!(hp.history.last().unwrap().contains("Error"));
+        assert!(hp.history.lines().last().unwrap().contains("Error"));
     }
 
     #[test]
@@ -454,9 +532,10 @@ mod tests {
 
     #[test]
     fn test_div_by_zero() {
+        println!("mark1");
         let hp = HPN::from("3 0 /");
         dbg!(&hp);
-        assert!(hp.history.last().unwrap().starts_with("Error 0"));
+        assert!(hp.history.lines().last().unwrap().starts_with("Error 0"));
         assert_eq!(hp.y().to_i32(), Some(3));
         assert_eq!(hp.x().to_i32(), Some(0));
     }
@@ -489,7 +568,7 @@ mod tests {
     fn test_idiv_by_zero() {
         let hp = HPN::from("3 0 //");
         dbg!(&hp);
-        assert!(hp.history.last().unwrap().starts_with("Error 0"));
+        assert!(hp.history.lines().last().unwrap().starts_with("Error 0"));
         assert_eq!(hp.y().to_i32(), Some(3));
         assert_eq!(hp.x().to_i32(), Some(0));
     }

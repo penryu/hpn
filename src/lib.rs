@@ -1,4 +1,4 @@
-// Copyright 2022 Tim Hammerquist
+// Copyright 2023 Tim Hammerquist
 //
 // Licensed under the [MIT license](https://opensource.org/licenses/MIT).
 // This file may not be copied, modified, or distributed except according to those terms.
@@ -21,7 +21,10 @@
 //! use hpn::prelude::*;
 //!
 //! // convert 21ºC to ºF
-//! let hp = HPN::from("21 9 * 5 / 32 +");
+//! let mut hp = HPN::from("21 9 * 5 / 32 +");
+//! assert_eq!(Some(69.8), hp.x().to_f64());
+//! // or just
+//! hp.evaluate("21 ctof");
 //! assert_eq!(Some(69.8), hp.x().to_f64());
 //! ```
 //!
@@ -29,21 +32,38 @@
 //!
 //! ```
 //! # use hpn::prelude::*;
-//! # let hp = HPN::from("21 9 * 5 / 32 +");
-//! let tape = hp.tape().collect::<Vec<_>>();
-//! println!("{}", tape.join("\n"));
+//! # let mut hp = HPN::from("21 9 * 5 / 32 +");
+//! # hp.evaluate("21 ctof");
+//! let tape = hp.tape().collect::<Vec<_>>().join("\n");
+//! println!("{tape}");
 //! // Output:
-//! // 0: [ t = 0      | z = 0      | y = 0      | x = 0      ]  <- 21
-//! // 1: [ t = 0      | z = 0      | y = 0      | x = 21     ]  <- 9
-//! // 2: [ t = 0      | z = 0      | y = 21     | x = 9      ]  <- *
-//! // 3: [ t = 0      | z = 0      | y = 0      | x = 189    ]  <- 5
-//! // 4: [ t = 0      | z = 0      | y = 189    | x = 5      ]  <- /
-//! // 5: [ t = 0      | z = 0      | y = 0      | x = 37.8   ]  <- 32
-//! // 6: [ t = 0      | z = 0      | y = 37.8   | x = 32     ]  <- +
-//! // 7: [ t = 0      | z = 0      | y = 0      | x = 69.8   ]
+//! // 0: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:    0.000 ]  <- 21
+//! // 1: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:   21.000 ]  <- 9
+//! // 2: [ T:    0.000 | Z:    0.000 | Y:   21.000 | X:    9.000 ]  <- *
+//! // 3: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:  189.000 ]  <- 5
+//! // 4: [ T:    0.000 | Z:    0.000 | Y:  189.000 | X:    5.000 ]  <- /
+//! // 5: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:   37.800 ]  <- 32
+//! // 6: [ T:    0.000 | Z:    0.000 | Y:   37.800 | X:   32.000 ]  <- +
+//! // 7: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:   69.800 ]  <- 21
+//! // 8: [ T:    0.000 | Z:    0.000 | Y:   69.800 | X:   21.000 ]  <- ctof
+//! // 9: [ T:    0.000 | Z:    0.000 | Y:   69.800 | X:   69.800 ]
 //! ```
 //!
-//! For a simple implementation of an interactive calculator, see the `hpnc` workspace.
+//! ## Command-line Client
+//!
+//! The easiest way to use this calculator is via the CLI client `hpnc`:
+//!
+//! ```text
+//! $ cargo install hpn
+//! $ hpnc
+//! hpnc x.x.x
+//! > 77 ftoc
+//!  0: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:    0.000 ]  <- 77
+//!  1: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:   77.000 ]  <- ftoc
+//!  2: [ T:    0.000 | Z:    0.000 | Y:    0.000 | X:   25.000 ]
+//! => 25
+//! >
+//! ```
 //!
 //! [hp_voyager]: https://en.wikipedia.org/wiki/Hewlett-Packard_Voyager_series
 
