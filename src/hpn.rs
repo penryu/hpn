@@ -5,8 +5,8 @@
 
 #![warn(clippy::all, clippy::pedantic)]
 
-use lazy_static::lazy_static;
 use std::fmt::{self, Write};
+use std::sync::OnceLock;
 
 use crate::atom::Atom;
 use crate::prelude::{FromPrimitive, Number, Rng, ToPrimitive, Zero};
@@ -14,6 +14,9 @@ use crate::util::{c_to_f, f_to_c, factorial, help, y_pow_x};
 
 const PRECISION: usize = 3;
 const WIDTH: usize = 8;
+
+static BIG_E: OnceLock<Number> = OnceLock::new();
+static BIG_PI: OnceLock<Number> = OnceLock::new();
 
 /// Underlying implementation of the 4-register stack.
 pub type Stack = [Number; 4];
@@ -160,13 +163,6 @@ impl HPN {
             return;
         }
 
-        lazy_static! {
-            static ref BIG_E: Number =
-                Number::from_f64(std::f64::consts::E).expect("should not fail");
-            static ref BIG_PI: Number =
-                Number::from_f64(std::f64::consts::PI).expect("should not fail");
-        }
-
         if atom.saves_last_x() {
             self.memory.last_x = self.x().clone();
         }
@@ -193,7 +189,14 @@ impl HPN {
                     self.replace(Register::X, dividend);
                 }
             }
-            Atom::Euler => self.push(BIG_E.clone()),
+            Atom::Euler => self.push(
+                BIG_E
+                    .get_or_init(|| {
+                        Number::from_f64(std::f64::consts::E)
+                            .expect("failed to convert f64 to Number")
+                    })
+                    .clone(),
+            ),
             Atom::Exchange => self.stack.swap(0, 1),
             Atom::FToC => self.replace(Register::X, f_to_c(self.x())),
             Atom::Factorial => match factorial(self.x()) {
@@ -219,7 +222,14 @@ impl HPN {
                 self.pop();
                 self.replace(Register::X, product);
             }
-            Atom::PI => self.push(BIG_PI.clone()),
+            Atom::PI => self.push(
+                BIG_PI
+                    .get_or_init(|| {
+                        Number::from_f64(std::f64::consts::PI)
+                            .expect("failed to convert f64 to number")
+                    })
+                    .clone(),
+            ),
             Atom::Push => self.push(self.x().clone()),
             Atom::Random => {
                 let rnd_f64: f64 = rand::thread_rng().gen();
