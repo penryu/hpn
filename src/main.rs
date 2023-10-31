@@ -27,9 +27,8 @@ fn read(message: &str) -> Option<String> {
 
     let mut buffer = String::new();
     match stdin().read_line(&mut buffer) {
-        Ok(bytes) if bytes == 0 => None,
+        Ok(0) | Err(_) => None,
         Ok(_) => Some(buffer.trim_end().to_owned()),
-        Err(_) => None,
     }
 }
 
