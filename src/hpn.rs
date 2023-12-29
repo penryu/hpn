@@ -45,7 +45,6 @@ impl History {
     }
 
     fn lines(&self) -> impl Iterator<Item = String> {
-        println!("mark2");
         self.0.clone().into_iter()
     }
 
@@ -542,7 +541,6 @@ mod tests {
 
     #[test]
     fn test_div_by_zero() {
-        println!("mark1");
         let hp = HPN::from("3 0 /");
         dbg!(&hp);
         assert!(hp.history.lines().last().unwrap().starts_with("Error 0"));
