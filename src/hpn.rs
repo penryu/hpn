@@ -569,7 +569,7 @@ mod tests {
 
     #[test]
     fn test_exchange() {
-        let hp = HPN::from("2 3 x<>y");
+        let hp = HPN::from("2 3 swap");
         assert_eq!(&Number::from(2), hp.x());
         assert_eq!(&Number::from(3), hp.y());
     }

@@ -118,7 +118,7 @@ impl Atom {
             Atom::CubeRoot => "cbrt",
             Atom::Div => "/",
             Atom::Euler => "e",
-            Atom::Exchange => "x<>y",
+            Atom::Exchange => "swap",
             Atom::FToC => "ftoc",
             Atom::Factorial => "n!",
             Atom::Help => "help",
@@ -172,7 +172,7 @@ impl From<&str> for Atom {
             "cbrt" => Atom::CubeRoot,
             "/" => Atom::Div,
             "e" => Atom::Euler,
-            "x<>y" => Atom::Exchange,
+            "swap" => Atom::Exchange,
             "ftoc" => Atom::FToC,
             "n!" => Atom::Factorial,
             "help" => Atom::Help,
@@ -224,7 +224,7 @@ mod tests {
         assert_eq!(Atom::CubeRoot, Atom::from("cbrt"));
         assert_eq!(Atom::Div, Atom::from("/"));
         assert_eq!(Atom::Euler, Atom::from("e"));
-        assert_eq!(Atom::Exchange, Atom::from("x<>y"));
+        assert_eq!(Atom::Exchange, Atom::from("swap"));
         assert_eq!(Atom::FToC, Atom::from("ftoc"));
         assert_eq!(Atom::Factorial, Atom::from("n!"));
         assert_eq!(Atom::Help, Atom::from("help"));
@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(Some("cbrt"), Atom::CubeRoot.operator());
         assert_eq!(Some("/"), Atom::Div.operator());
         assert_eq!(Some("e"), Atom::Euler.operator());
-        assert_eq!(Some("x<>y"), Atom::Exchange.operator());
+        assert_eq!(Some("swap"), Atom::Exchange.operator());
         assert_eq!(Some("ftoc"), Atom::FToC.operator());
         assert_eq!(Some("n!"), Atom::Factorial.operator());
         assert_eq!(Some("help"), Atom::Help.operator());
