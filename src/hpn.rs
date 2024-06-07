@@ -3,8 +3,6 @@
 // Licensed under the [MIT license](https://opensource.org/licenses/MIT).
 // This file may not be copied, modified, or distributed except according to those terms.
 
-#![warn(clippy::all, clippy::pedantic)]
-
 use std::fmt::{self, Write};
 use std::sync::OnceLock;
 

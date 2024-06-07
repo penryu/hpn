@@ -6,7 +6,8 @@
 //!
 //! Execution stops on EOF (^D).
 
-#![warn(clippy::all, clippy::pedantic)]
+#![warn(clippy::pedantic)]
+#![deny(clippy::all)]
 #![deny(missing_docs)]
 
 use hpn::prelude::*;

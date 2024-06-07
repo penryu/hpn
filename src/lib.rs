@@ -67,7 +67,8 @@
 //!
 //! [hp_voyager]: https://en.wikipedia.org/wiki/Hewlett-Packard_Voyager_series
 
-#![warn(clippy::all, clippy::pedantic)]
+#![warn(clippy::pedantic)]
+#![deny(clippy::all)]
 #![deny(missing_docs)]
 
 pub mod prelude;
