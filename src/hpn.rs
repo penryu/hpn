@@ -51,10 +51,10 @@ impl History {
     }
 }
 
-impl ToString for History {
-    fn to_string(&self) -> String {
-        let rows = self.lines().collect::<Vec<_>>();
-        rows.join("\n")
+impl fmt::Display for History {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let rows = self.lines().collect::<Vec<_>>().join("\n");
+        write!(f, "{rows}")
     }
 }
 
@@ -140,7 +140,7 @@ impl HPN {
     /// ```
     /// # use hpn::prelude::*;
     /// let hp = HPN::from("3 4 7 - +");
-    /// hp.tape().for_each(|line| println!("{}", line));
+    /// hp.tape().for_each(|line| println!("{line}"));
     /// ```
     pub fn tape(&self) -> impl Iterator<Item = String> {
         self.history
@@ -415,6 +415,8 @@ impl TryFrom<&HPN> for [i32; 4] {
 
 #[cfg(test)]
 mod tests {
+    use regex::Regex;
+
     use crate::prelude::{FromStr, One, ToPrimitive, Zero};
 
     use super::*;
@@ -697,7 +699,7 @@ mod tests {
 
         let result = <[f64; 4]>::try_from(&hp).unwrap();
         for (i, n) in expected.iter().enumerate() {
-            assert!((*n - result[i]).abs() < std::f64::EPSILON);
+            assert!((*n - result[i]).abs() < f64::EPSILON);
         }
     }
 
@@ -707,6 +709,29 @@ mod tests {
         let expected = [13, 13, 8, 5];
         let result = <[i32; 4]>::try_from(&hp).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_impl_display() {
+        let hp = HPN::from("-1.2");
+        let history = hp.history.to_string();
+        dbg!(&history);
+
+        let re_history = Regex::new(
+            r"(?x)
+            ^\[\s
+            T:\s+(-?\d+\.\d+)
+            \s\|\s
+            Z:\s+(-?\d+\.\d+)
+            \s\|\s
+            Y:\s+(-?\d+\.\d+)
+            \s\|\s
+            X:\s+(-?\d+\.\d+)
+            \s\]\s+<-\s
+            (-?\d+\.\d+)$",
+        )
+        .unwrap();
+        assert!(re_history.is_match(&history));
     }
 
     /// Used to verify output when run explicitly. Ignored otherwise.
