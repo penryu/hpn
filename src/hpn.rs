@@ -264,10 +264,14 @@ impl HPN {
                 self.pop();
                 self.replace(Register::X, difference);
             }
-            Atom::YToX => match y_pow_x(self.y(), self.x()) {
-                Some(result) => self.replace(Register::X, result),
-                None => self.log_message("Error 0"),
-            },
+            Atom::YToX => {
+                let product = y_pow_x(self.y(), self.x());
+                self.pop();
+                match product {
+                    Some(result) => self.replace(Register::X, result),
+                    None => self.log_message("Error 0"),
+                }
+            }
             Atom::Value(n) => self.push(n.clone()),
             Atom::BadToken(_) => {
                 self.log_message(&format!("Error: {atom:?}"));
@@ -647,6 +651,10 @@ mod tests {
         // (rough) integral
         let hp = HPN::from("2 3 y^x");
         assert_eq!(&Number::from(8), hp.x());
+        // stack tidiness
+        let hp = HPN::from("1 2 3 y^x");
+        assert_eq!(&Number::from(8), hp.x());
+        assert_eq!(&Number::one(), hp.y());
     }
 
     #[test]
