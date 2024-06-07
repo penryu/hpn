@@ -65,6 +65,7 @@ pub fn help() -> String {
         Atom::Square,
         Atom::SquareRoot,
         Atom::Sub,
+        Atom::Version,
         Atom::YToX,
     ]
     .iter()

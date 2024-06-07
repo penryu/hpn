@@ -150,6 +150,14 @@ impl HPN {
             .map(|(i, line)| format!("{i:2}: {line}"))
     }
 
+    /// Yields the version of the crate
+    #[must_use]
+    pub fn version() -> String {
+        let my_name = env!("CARGO_PKG_NAME");
+        let version = env!("CARGO_PKG_VERSION");
+        format!("{my_name} {version}")
+    }
+
     /// Applies an atom to the current stack.
     #[allow(clippy::too_many_lines)]
     fn apply(&mut self, atom: &Atom) {
@@ -264,6 +272,7 @@ impl HPN {
                 self.pop();
                 self.replace(Register::X, difference);
             }
+            Atom::Version => self.log_message(&Self::version()),
             Atom::YToX => {
                 let product = y_pow_x(self.y(), self.x());
                 self.pop();

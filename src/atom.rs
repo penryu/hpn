@@ -56,6 +56,8 @@ pub(crate) enum Atom {
     YToX,
     /// Pushes value
     Value(Number),
+    /// Yields crate version
+    Version,
     /// Represents (and logs) an unrecognized token
     BadToken(String),
 }
@@ -100,7 +102,8 @@ impl Atom {
             | Atom::LastX
             | Atom::Push
             | Atom::Roll
-            | Atom::Value(_) => false,
+            | Atom::Value(_)
+            | Atom::Version => false,
         }
     }
 
@@ -131,6 +134,7 @@ impl Atom {
             Atom::Square => "x^2",
             Atom::SquareRoot => "sqrt",
             Atom::Sub => "-",
+            Atom::Version => "version",
             Atom::YToX => "y^x",
             Atom::BadToken(_) | Atom::Value(_) => return None,
         };
@@ -183,6 +187,7 @@ impl From<&str> for Atom {
             "roll" => Atom::Roll,
             "x^2" => Atom::Square,
             "sqrt" => Atom::SquareRoot,
+            "version" => Atom::Version,
             "y^x" => Atom::YToX,
             "-" => Atom::Sub,
             _ => match token.parse::<Number>() {
@@ -235,6 +240,7 @@ mod tests {
         assert_eq!(Atom::Square, Atom::from("x^2"));
         assert_eq!(Atom::SquareRoot, Atom::from("sqrt"));
         assert_eq!(Atom::Sub, Atom::from("-"));
+        assert_eq!(Atom::Version, Atom::from("version"));
         assert_eq!(Atom::YToX, Atom::from("y^x"));
     }
 
@@ -242,11 +248,15 @@ mod tests {
     fn test_atom_to_str() {
         assert_eq!(Some("abs"), Atom::Abs.operator());
         assert_eq!(Some("+"), Atom::Add.operator());
+        assert_eq!(Some("ctof"), Atom::CToF.operator());
         assert_eq!(Some("chs"), Atom::ChangeSign.operator());
         assert_eq!(Some("clx"), Atom::ClearX.operator());
+        assert_eq!(Some("x^3"), Atom::Cube.operator());
+        assert_eq!(Some("cbrt"), Atom::CubeRoot.operator());
         assert_eq!(Some("/"), Atom::Div.operator());
         assert_eq!(Some("e"), Atom::Euler.operator());
         assert_eq!(Some("x<>y"), Atom::Exchange.operator());
+        assert_eq!(Some("ftoc"), Atom::FToC.operator());
         assert_eq!(Some("n!"), Atom::Factorial.operator());
         assert_eq!(Some("help"), Atom::Help.operator());
         assert_eq!(Some("//"), Atom::IDiv.operator());
@@ -258,7 +268,11 @@ mod tests {
         assert_eq!(Some("1/x"), Atom::Reciprocal.operator());
         assert_eq!(Some("rmd"), Atom::Remainder.operator());
         assert_eq!(Some("roll"), Atom::Roll.operator());
+        assert_eq!(Some("x^2"), Atom::Square.operator());
+        assert_eq!(Some("sqrt"), Atom::SquareRoot.operator());
         assert_eq!(Some("-"), Atom::Sub.operator());
+        assert_eq!(Some("version"), Atom::Version.operator());
+        assert_eq!(Some("y^x"), Atom::YToX.operator());
     }
 
     #[test]

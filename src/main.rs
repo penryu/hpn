@@ -10,10 +10,10 @@
 #![deny(clippy::all)]
 #![deny(missing_docs)]
 
-use hpn::prelude::*;
 use std::env;
 use std::io::{stdin, stdout, Write};
-use std::path::Path;
+
+use hpn::prelude::*;
 
 fn eval_print(hpnc: &mut HPN, expr: &str) {
     hpnc.evaluate(expr);
@@ -33,21 +33,13 @@ fn read(message: &str) -> Option<String> {
     }
 }
 
-fn print_version(path: &str) {
-    let my_name = Path::new(path).file_name().unwrap().to_str().unwrap();
-    let version = env!("CARGO_PKG_VERSION");
-
-    println!("{my_name} {version}");
-}
-
 fn main() {
     let mut hp = HPN::default();
-    let mut args = env::args();
-    let bin_path = &args.next().unwrap();
+    let args = env::args().skip(1);
 
     match &args.collect::<Vec<_>>()[..] {
         [] => {
-            print_version(bin_path);
+            println!("{}", HPN::version());
 
             while let Some(expr) = read("> ") {
                 eval_print(&mut hp, &expr);
